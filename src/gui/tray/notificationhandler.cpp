@@ -135,18 +135,6 @@ void ServerNotificationHandler::slotNotificationsReceived(const QJsonDocument &j
 
         a._status = 0;
 
-        QUrl link(json.value("link").toString());
-        if (!link.isEmpty()) {
-            if (link.host().isEmpty()) {
-                link.setScheme(ai->account()->url().scheme());
-                link.setHost(ai->account()->url().host());
-            }
-            if (link.port() == -1) {
-                link.setPort(ai->account()->url().port());
-            }
-        }
-        a._link = link;
-
         // Add another action to dismiss notification on server
         // https://github.com/owncloud/notifications/blob/master/docs/ocs-endpoint-v1.md#deleting-a-notification-for-a-user
         constexpr auto deleteVerb = "DELETE";
