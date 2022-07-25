@@ -82,6 +82,9 @@ public:
     enum class WindowPosition { Default, Center };
     Q_ENUM(WindowPosition);
 
+    enum class FileDetailsPage { Activity, Sharing };
+    Q_ENUM(FileDetailsPage);
+
     void setTrayEngine(QQmlApplicationEngine *trayEngine);
     void create();
     void showMessage(const QString &title, const QString &message, MessageIcon icon = Information);
@@ -95,6 +98,8 @@ public:
     Q_REQUIRED_RESULT bool syncIsPaused() const;
     Q_REQUIRED_RESULT bool isOpen() const;
 
+    Q_REQUIRED_RESULT bool raiseDialogs();
+
 signals:
     void currentUserChanged();
     void openAccountWizard();
@@ -102,8 +107,7 @@ signals:
     void openHelp();
     void shutdown();
 
-    void openShareDialog(const QString &sharePath, const QString &localPath);
-    void showFileActivityDialog(const QString &objectName, const int objectId);
+    void showFileDetailsPage(const QString &fileLocalPath, const FileDetailsPage page);
     void sendChatMessage(const QString &token, const QString &message, const QString &replyTo);
     void showErrorMessageDialog(const QString &error);
 
@@ -128,6 +132,9 @@ public slots:
     void setSyncIsPaused(const bool syncIsPaused);
     void setIsOpen(const bool isOpen);
 
+    void createShareDialog(const QString &localPath);
+    void createFileActivityDialog(const QString &localPath);
+
 private slots:
     void slotUnpauseAllFolders();
     void slotPauseAllFolders();
@@ -139,6 +146,7 @@ private:
     Systray();
 
     void setupContextMenu();
+    void createFileDetailsDialog(const QString &localPath);
 
     QScreen *currentScreen() const;
     QRect currentScreenRect() const;
@@ -160,6 +168,7 @@ private:
     AccessManagerFactory _accessManagerFactory;
 
     QSet<qlonglong> _callsAlreadyNotified;
+    QVector<QSharedPointer<QQuickWindow>> _dialogs;
 };
 
 } // namespace OCC

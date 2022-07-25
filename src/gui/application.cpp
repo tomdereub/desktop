@@ -31,7 +31,6 @@
 #include "sslerrordialog.h"
 #include "theme.h"
 #include "clientproxy.h"
-#include "sharedialog.h"
 #include "accountmanager.h"
 #include "creds/abstractcredentials.h"
 #include "pushnotifications.h"
@@ -377,7 +376,7 @@ Application::Application(int &argc, char **argv)
         _gui.data(), &ownCloudGui::slotShowShareDialog);
 
     connect(FolderMan::instance()->socketApi(), &SocketApi::fileActivityCommandReceived,
-        Systray::instance(), &Systray::showFileActivityDialog);
+        _gui.data(), &ownCloudGui::slotShowFileActivityDialog);
 
     // startup procedure.
     connect(&_checkConnectionTimer, &QTimer::timeout, this, &Application::slotCheckConnection);

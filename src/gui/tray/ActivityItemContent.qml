@@ -19,6 +19,8 @@ RowLayout {
 
     property color adjustedHeaderColor: "transparent"
 
+    property int iconSize: Style.trayListItemIconSize
+
     signal dismissButtonClicked()
     signal shareButtonClicked()
 
@@ -27,8 +29,8 @@ RowLayout {
     Item {
         id: thumbnailItem
         Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-        Layout.preferredWidth: Style.trayListItemIconSize
-        Layout.preferredHeight: model.thumbnail && model.thumbnail.isMimeTypeIcon ? Style.trayListItemIconSize * 0.9 : Style.trayListItemIconSize
+        Layout.preferredWidth: root.iconSize
+        Layout.preferredHeight: model.thumbnail && model.thumbnail.isMimeTypeIcon ? root.iconSize * 0.9 : root.iconSize
         readonly property int imageWidth: width * (1 - Style.thumbnailImageSizeReduction)
         readonly property int imageHeight: height * (1 - Style.thumbnailImageSizeReduction)
         readonly property int thumbnailRadius: model.thumbnail && model.thumbnail.isUserAvatar ? width / 2 : 3
