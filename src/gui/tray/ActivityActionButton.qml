@@ -1,13 +1,11 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.3
-import QtQuick.Layouts 1.15
 import Style 1.0
 import com.nextcloud.desktopclient 1.0
 
-Item {
+AbstractButton {
     id: root
 
-    property string text: ""
     property string toolTipText: ""
 
     property bool bold: false
@@ -18,49 +16,60 @@ Item {
     property color textColor: Style.ncTextColor
     property color textColorHovered: Style.ncSecondaryTextColor
 
-    signal clicked()
+    property string verb: ""
+    property bool primary: false
+    property bool isTalkReplyButton: false
 
-    Loader {
-        active: root.imageSource === ""
+    background: NCButtonBackground {
+        color: UserModel.currentUser.headerColor
+        hovered: root.hovered
+        visible: root.primary
+    }
 
-        anchors.fill: parent
+    contentItem: Loader {
+        id: contentItemLoader
+        active: true
+        sourceComponent: primary ? primaryButtonContent : textButtonContent
+    }
 
-        sourceComponent: CustomTextButton {
-             anchors.fill: parent
-             text: root.text
-             toolTipText: root.toolTipText
-
-             textColor: root.textColor
-             textColorHovered: root.textColorHovered
-
-             onClicked: root.clicked()
+    ToolTip {
+        id: customTextButtonTooltip
+        text: root.toolTipText
+        delay: Qt.styleHints.mousePressAndHoldInterval
+        visible: root.toolTipText !== "" && root.hovered
+        contentItem: Label {
+            text: customTextButtonTooltip.text
+            color: Style.ncTextColor
+        }
+        background: Rectangle {
+            border.color: Style.menuBorder
+            color: Style.backgroundColor
         }
     }
 
-    Loader {
-        active: root.imageSource !== ""
-
-        anchors.fill: parent
-
-        sourceComponent: CustomButton {
+    Component {
+        id: textButtonContent
+        TextButtonContents {
             anchors.fill: parent
-            anchors.topMargin: Style.roundedButtonBackgroundVerticalMargins
-            anchors.bottomMargin: Style.roundedButtonBackgroundVerticalMargins
-
+            hovered: root.hovered
             text: root.text
-            toolTipText: root.toolTipText
-
             textColor: root.textColor
             textColorHovered: root.textColorHovered
-
             bold: root.bold
+        }
+    }
 
-            imageSource: root.imageSource
+    Component {
+        id: primaryButtonContent
+        NCButtonContents {
+            anchors.fill: parent
+            hovered: root.hovered
             imageSourceHover: root.imageSourceHover
-
-            bgColor: UserModel.currentUser.headerColor
-
-            onClicked: root.clicked()
+            imageSource: root.imageSource
+            text: root.text
+            textColor: root.textColor
+            textColorHovered: root.textColorHovered
+            bold: root.bold
         }
     }
 }
