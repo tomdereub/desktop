@@ -1381,7 +1381,11 @@ void ProcessDirectoryJob::processFileConflict(const SyncFileItemPtr &item, Proce
             rec._fileSize = serverEntry.size;
             rec._remotePerm = serverEntry.remotePerm;
             rec._checksumHeader = serverEntry.checksumHeader;
-            _discoveryData->_statedb->setFileRecord(rec);
+            const auto dbResult = _discoveryData->_statedb->setFileRecord(rec);
+            if (!dbResult) {
+                qCInfo(lcDisco) << "processFileConflict failed as we could not set a record:" << rec._path << " for an item:" << item->_file << dbResult.error();
+            }
+
         }
         return;
     }

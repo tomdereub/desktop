@@ -863,9 +863,8 @@ qint64 SyncJournalDb::getPHash(const QByteArray &file)
     return h;
 }
 
-Result<void, QString> SyncJournalDb::setFileRecord(const SyncJournalFileRecord &_record)
+Result<void, QString> SyncJournalDb::setFileRecord(SyncJournalFileRecord record)
 {
-    SyncJournalFileRecord record = _record;
     QMutexLocker locker(&_mutex);
 
     if (!_etagStorageFilter.isEmpty()) {

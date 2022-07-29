@@ -319,7 +319,10 @@ void OCC::HydrationJob::finalize(OCC::VfsCfApi *vfs)
     // store the actual size of a file that has been decrypted as we will need its actual size when dehydrating it if requested
     record._fileSize = FileSystem::getSize(localPath() + folderPath());
 
-    _journal->setFileRecord(record);
+    const auto dbResult = _journal->setFileRecord(record);
+    if (!dbResult) {
+        qCWarning(lcHydration) << "Couldn't setFileRecord after hydratrion" << _requestId << _folderPath << dbResult.error();
+    }
 }
 
 void OCC::HydrationJob::onGetFinished()

@@ -372,7 +372,15 @@ void OCC::SyncEngine::slotItemDiscovered(const OCC::SyncFileItemPtr &item)
             }
 
             // Updating the db happens on success
-            _journal->setFileRecord(rec);
+            const auto dbResult = _journal->setFileRecord(rec);
+
+            if (!dbResult) {
+                item->_status = SyncFileItem::Status::NormalError;
+                item->_instruction = CSYNC_INSTRUCTION_ERROR;
+                item->_errorString = tr("Could not update file: %1").arg(dbResult.error());
+                emit itemCompleted(item);
+                return;
+            }
 
             // This might have changed the shared flag, so we must notify SyncFileStatusTracker for example
             emit itemCompleted(item);
