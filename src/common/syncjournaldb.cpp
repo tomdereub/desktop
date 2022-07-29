@@ -1107,8 +1107,7 @@ SyncJournalFileRecord SyncJournalDb::getFileRecordByE2eMangledName(const QString
 
     auto next = query->next();
     if (!next.ok) {
-        QString err = query->error();
-        qCWarning(lcDb) << "No journal entry found for mangled name" << mangledName << "Error: " << err;
+        qCWarning(lcDb) << "No journal entry found for mangled name" << mangledName << "Error: " << query->error();
         close();
         return fileRecord;
     }

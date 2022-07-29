@@ -1009,8 +1009,9 @@ void SyncEngine::wipeVirtualFiles(const QString &localPath, SyncJournalDb &journ
 {
     qCInfo(lcEngine) << "Wiping virtual files inside" << localPath;
     journal.getFilesBelowPath(QByteArray(), [&](const SyncJournalFileRecord &rec) {
-        if (rec._type != ItemTypeVirtualFile && rec._type != ItemTypeVirtualFileDownload)
+        if (!rec.isValid() || (rec._type != ItemTypeVirtualFile && rec._type != ItemTypeVirtualFileDownload)) {
             return;
+        }
 
         qCDebug(lcEngine) << "Removing db record for" << rec.path();
         journal.deleteFileRecord(rec._path);
@@ -1036,7 +1037,7 @@ void SyncEngine::switchToVirtualFiles(const QString &localPath, SyncJournalDb &j
     journal.getFilesBelowPath({}, [&](const SyncJournalFileRecord &rec) {
         const auto path = rec.path();
         const auto fileName = QFileInfo(path).fileName();
-        if (FileSystem::isExcludeFile(fileName)) {
+        if (!rec.isValid() || FileSystem::isExcludeFile(fileName)) {
             return;
         }
         SyncFileItem item;

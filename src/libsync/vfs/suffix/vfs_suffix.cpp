@@ -46,7 +46,7 @@ void VfsSuffix::startImpl(const VfsSetupParams &params)
     // files that were synced before vfs was enabled.
     QByteArrayList toWipe;
     params.journal->getFilesBelowPath("", [&toWipe](const SyncJournalFileRecord &rec) {
-        if (!rec.isVirtualFile() && rec._path.endsWith(APPLICATION_DOTVIRTUALFILE_SUFFIX))
+        if (rec.isValid() && !rec.isVirtualFile() && rec._path.endsWith(APPLICATION_DOTVIRTUALFILE_SUFFIX))
             toWipe.append(rec._path);
     });
     for (const auto &path : toWipe)
