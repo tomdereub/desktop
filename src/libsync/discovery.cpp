@@ -855,8 +855,8 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
         } else {
             path._target = localEntry.renameName;
         }
-        OCC::SyncJournalFileRecord base;
-        if (!_discoveryData->_statedb->getFileRecordByInode(localEntry.inode, &base)) {
+        const auto base = _discoveryData->_statedb->getFileRecordByInode(localEntry.inode);
+        if (!base.isValid()) {
             dbError();
             return;
         }
@@ -1147,8 +1147,8 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
     };
 
     // Check if it is a move
-    OCC::SyncJournalFileRecord base;
-    if (!_discoveryData->_statedb->getFileRecordByInode(localEntry.inode, &base)) {
+    const auto base = _discoveryData->_statedb->getFileRecordByInode(localEntry.inode);
+    if (!base.isValid()) {
         dbError();
         return;
     }
@@ -1371,8 +1371,8 @@ void ProcessDirectoryJob::processFileConflict(const SyncFileItemPtr &item, Proce
         // Update the etag and other server metadata in the journal already
         // (We can't use a typical CSYNC_INSTRUCTION_UPDATE_METADATA because
         // we must not store the size/modtime from the file system)
-        OCC::SyncJournalFileRecord rec;
-        if (_discoveryData->_statedb->getFileRecord(path._original, &rec)) {
+        auto rec = _discoveryData->_statedb->getFileRecord(path._original);
+        if (rec.isValid()) {
             rec._path = path._original.toUtf8();
             rec._etag = serverEntry.etag;
             rec._fileId = serverEntry.fileId;
@@ -1590,9 +1590,9 @@ bool ProcessDirectoryJob::isRename(const QString &originalPath) const
     /* TODO: This was needed at some point to cover an edge case which I am no longer to reproduce and it might no longer be the case.
     *  Still, leaving this here just in case the edge case is caught at some point in future.
     * 
-    OCC::SyncJournalFileRecord base;
+    const auto base = _discoveryData->_statedb->getFileRecord(originalPath);
     // are we allowed to rename?
-    if (!_discoveryData || !_discoveryData->_statedb || !_discoveryData->_statedb->getFileRecord(originalPath, &base)) {
+    if (!_discoveryData || !_discoveryData->_statedb || !base.isValid()) {
         return false;
     }
     qCWarning(lcDisco) << "isRename from" << originalPath << " to" << targetPath << " :"

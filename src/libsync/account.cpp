@@ -883,8 +883,8 @@ void Account::setLockFileState(const QString &serverRelativePath,
 SyncFileItem::LockStatus Account::fileLockStatus(SyncJournalDb * const journal,
                                                  const QString &folderRelativePath) const
 {
-    SyncJournalFileRecord record;
-    if (journal->getFileRecord(folderRelativePath, &record)) {
+    const auto record = journal->getFileRecord(folderRelativePath);
+    if (record.isValid()) {
         return record._lockstate._locked ? SyncFileItem::LockStatus::LockedItem : SyncFileItem::LockStatus::UnlockedItem;
     }
 
@@ -894,8 +894,8 @@ SyncFileItem::LockStatus Account::fileLockStatus(SyncJournalDb * const journal,
 bool Account::fileCanBeUnlocked(SyncJournalDb * const journal,
                                 const QString &folderRelativePath) const
 {
-    SyncJournalFileRecord record;
-    if (journal->getFileRecord(folderRelativePath, &record)) {
+    const auto record = journal->getFileRecord(folderRelativePath);
+    if (record.isValid()) {
         if (record._lockstate._lockOwnerType != static_cast<int>(SyncFileItem::LockOwnerType::UserLock)) {
             return false;
         }

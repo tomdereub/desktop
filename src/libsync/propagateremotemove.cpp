@@ -97,9 +97,8 @@ void PropagateRemoteMove::start()
             const auto slashPosition = path.lastIndexOf('/');
             const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
 
-            SyncJournalFileRecord parentRec;
-            bool ok = propagator()->_journal->getFileRecord(parentPath, &parentRec);
-            if (!ok) {
+            const auto parentRec = propagator()->_journal->getFileRecord(parentPath);
+            if (!parentRec.isValid()) {
                 done(SyncFileItem::NormalError);
                 return;
             }
@@ -244,8 +243,7 @@ void PropagateRemoteMove::finalize()
     // reopens the db successfully.
     // The db is only queried to transfer the content checksum from the old
     // to the new record. It is not a problem to skip it here.
-    SyncJournalFileRecord oldRecord;
-    propagator()->_journal->getFileRecord(_item->_originalFile, &oldRecord);
+    const auto oldRecord = propagator()->_journal->getFileRecord(_item->_originalFile);
     auto &vfs = propagator()->syncOptions()._vfs;
     auto pinState = vfs->pinState(_item->_originalFile);
 

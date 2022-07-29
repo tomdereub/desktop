@@ -506,8 +506,7 @@ void AccountSettings::slotSubfolderContextMenuRequested(const QModelIndex& index
 
         // It might be an E2EE mangled path, so let's try to demangle it
         const auto journal = folder->journalDb();
-        SyncJournalFileRecord rec;
-        journal->getFileRecordByE2eMangledName(remotePath, &rec);
+        const auto rec = journal->getFileRecordByE2eMangledName(remotePath);
 
         const auto path = rec.isValid() ? rec._path : remotePath;
 

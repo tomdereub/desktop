@@ -584,8 +584,7 @@ void Folder::slotWatchedPathChanged(const QString &path, ChangeReason reason)
 #endif
 
 
-    SyncJournalFileRecord record;
-    _journal.getFileRecord(relativePathBytes, &record);
+    const auto record = _journal.getFileRecord(relativePathBytes);
     if (reason != ChangeReason::UnLock) {
         // Check that the mtime/size actually changed or there was
         // an attribute change (pin state) that caused the notification
@@ -620,8 +619,7 @@ void Folder::implicitlyHydrateFile(const QString &relativepath)
     qCInfo(lcFolder) << "Implicitly hydrate virtual file:" << relativepath;
 
     // Set in the database that we should download the file
-    SyncJournalFileRecord record;
-    _journal.getFileRecord(relativepath.toUtf8(), &record);
+    auto record = _journal.getFileRecord(relativepath.toUtf8());  
     if (!record.isValid()) {
         qCInfo(lcFolder) << "Did not find file in db";
         return;

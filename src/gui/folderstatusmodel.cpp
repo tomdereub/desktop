@@ -742,8 +742,7 @@ void FolderStatusModel::slotUpdateDirectories(const QStringList &list)
         newInfo._isEncrypted = encryptionMap.value(removeTrailingSlash(path)).toString() == QStringLiteral("1");
         newInfo._path = relativePath;
 
-        SyncJournalFileRecord rec;
-        parentInfo->_folder->journalDb()->getFileRecordByE2eMangledName(removeTrailingSlash(relativePath), &rec);
+        const auto rec = parentInfo->_folder->journalDb()->getFileRecordByE2eMangledName(removeTrailingSlash(relativePath));
         if (rec.isValid()) {
             newInfo._name = removeTrailingSlash(rec._path).split('/').last();
             if (rec._isE2eEncrypted && !rec._e2eMangledName.isEmpty()) {

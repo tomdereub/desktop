@@ -1050,122 +1050,103 @@ bool SyncJournalDb::deleteFileRecord(const QString &filename, bool recursively)
 }
 
 
-bool SyncJournalDb::getFileRecord(const QByteArray &filename, SyncJournalFileRecord *rec)
+SyncJournalFileRecord SyncJournalDb::getFileRecord(const QByteArray &filename)
 {
+    SyncJournalFileRecord fileRecord;
     QMutexLocker locker(&_mutex);
 
-    // Reset the output var in case the caller is reusing it.
-    Q_ASSERT(rec);
-    rec->_path.clear();
-    Q_ASSERT(!rec->isValid());
-
-    if (_metadataTableIsEmpty)
-        return true; // no error, yet nothing found (rec->isValid() == false)
-
-    if (!checkConnect())
-        return false;
-
-    if (!filename.isEmpty()) {
-        const auto query = _queryManager.get(PreparedSqlQueryManager::GetFileRecordQuery, QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE phash=?1"), _db);
-        if (!query) {
-            return false;
-        }
-
-        query->bindValue(1, getPHash(filename));
-
-        if (!query->exec()) {
-            close();
-            return false;
-        }
-
-        auto next = query->next();
-        if (!next.ok) {
-            QString err = query->error();
-            qCWarning(lcDb) << "No journal entry found for" << filename << "Error:" << err;
-            close();
-            return false;
-        }
-        if (next.hasData) {
-            fillFileRecordFromGetQuery(*rec, *query);
-        }
+    if (_metadataTableIsEmpty || !checkConnect() || filename.isEmpty()) {
+        return fileRecord;
     }
-    return true;
+
+    const auto query = _queryManager.get(PreparedSqlQueryManager::GetFileRecordQuery, QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE phash=?1"), _db);
+    if (!query) {
+        return fileRecord;
+    }
+
+    query->bindValue(1, getPHash(filename));
+
+    if (!query->exec()) {
+        close();
+        return fileRecord;
+    }
+
+    auto next = query->next();
+    if (!next.ok) {
+        qCWarning(lcDb) << "No journal entry found for" << filename << "Error:" << query->error();
+        close();
+        return fileRecord;
+    }
+    if (next.hasData) {
+        fillFileRecordFromGetQuery(fileRecord, *query);
+    }
+    return fileRecord;
 }
 
-bool SyncJournalDb::getFileRecordByE2eMangledName(const QString &mangledName, SyncJournalFileRecord *rec)
+SyncJournalFileRecord SyncJournalDb::getFileRecordByE2eMangledName(const QString &mangledName)
 {
+    SyncJournalFileRecord fileRecord;
     QMutexLocker locker(&_mutex);
 
-    // Reset the output var in case the caller is reusing it.
-    Q_ASSERT(rec);
-    rec->_path.clear();
-    Q_ASSERT(!rec->isValid());
-
-    if (_metadataTableIsEmpty) {
-        return true; // no error, yet nothing found (rec->isValid() == false)
+    if (_metadataTableIsEmpty || !checkConnect() || mangledName.isEmpty()) {
+        return fileRecord;
     }
 
-    if (!checkConnect()) {
-        return false;
+    const auto query = _queryManager.get(PreparedSqlQueryManager::GetFileRecordQueryByMangledName,
+        QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE e2eMangledName=?1"), _db);
+    if (!query) {
+        return fileRecord;
     }
 
-    if (!mangledName.isEmpty()) {
-        const auto query = _queryManager.get(PreparedSqlQueryManager::GetFileRecordQueryByMangledName, QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE e2eMangledName=?1"), _db);
-        if (!query) {
-            return false;
-        }
+    query->bindValue(1, mangledName);
 
-        query->bindValue(1, mangledName);
-
-        if (!query->exec()) {
-            close();
-            return false;
-        }
-
-        auto next = query->next();
-        if (!next.ok) {
-            QString err = query->error();
-            qCWarning(lcDb) << "No journal entry found for mangled name" << mangledName << "Error: " << err;
-            close();
-            return false;
-        }
-        if (next.hasData) {
-            fillFileRecordFromGetQuery(*rec, *query);
-        }
+    if (!query->exec()) {
+        close();
+        return fileRecord;
     }
-    return true;
+
+    auto next = query->next();
+    if (!next.ok) {
+        QString err = query->error();
+        qCWarning(lcDb) << "No journal entry found for mangled name" << mangledName << "Error: " << err;
+        close();
+        return fileRecord;
+    }
+    if (next.hasData) {
+        fillFileRecordFromGetQuery(fileRecord, *query);
+    }
+    return fileRecord;
 }
 
-bool SyncJournalDb::getFileRecordByInode(quint64 inode, SyncJournalFileRecord *rec)
+SyncJournalFileRecord SyncJournalDb::getFileRecordByInode(quint64 inode)
 {
+    SyncJournalFileRecord fileRecord;
     QMutexLocker locker(&_mutex);
 
-    // Reset the output var in case the caller is reusing it.
-    Q_ASSERT(rec);
-    rec->_path.clear();
-    Q_ASSERT(!rec->isValid());
+    if (!inode || _metadataTableIsEmpty || !checkConnect()) {
+        return fileRecord; // no error, yet nothing found (rec->isValid() == false)
+    }
 
-    if (!inode || _metadataTableIsEmpty)
-        return true; // no error, yet nothing found (rec->isValid() == false)
-
-    if (!checkConnect())
-        return false;
     const auto query = _queryManager.get(PreparedSqlQueryManager::GetFileRecordQueryByInode, QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE inode=?1"), _db);
-    if (!query)
-        return false;
+    if (!query) {
+        return fileRecord;
+    }
 
     query->bindValue(1, inode);
 
-    if (!query->exec())
-        return false;
+    if (!query->exec()) {
+        return fileRecord;
+    }
 
     auto next = query->next();
-    if (!next.ok)
-        return false;
-    if (next.hasData)
-        fillFileRecordFromGetQuery(*rec, *query);
+    if (!next.ok) {
+        return fileRecord;
+    }
+    if (next.hasData) {
+        fillFileRecordFromGetQuery(fileRecord, *query);
+    }
 
-    return true;
+    return fileRecord;
 }
 
 bool SyncJournalDb::getFileRecordsByFileId(const QByteArray &fileId, const std::function<void(const SyncJournalFileRecord &)> &rowCallback)

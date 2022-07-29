@@ -140,32 +140,31 @@ SyncJournalFileRecord LockFileJob::handleReply()
         }
     }
 
-    SyncJournalFileRecord record;
-
     if (_lockStatus == SyncFileItem::LockStatus::LockedItem) {
         if (_lockOwnerType == SyncFileItem::LockOwnerType::UserLock && _userDisplayName.isEmpty()) {
-            return record;
+            return SyncJournalFileRecord{};
         }
 
         if (_lockOwnerType == SyncFileItem::LockOwnerType::AppLock && _editorName.isEmpty()) {
-            return record;
+            return SyncJournalFileRecord{};
         }
 
         if (_userId.isEmpty()) {
-            return record;
+            return SyncJournalFileRecord{};
         }
 
         if (_lockTime <= 0) {
-            return record;
+            return SyncJournalFileRecord{};
         }
 
         if (_lockTimeout <= 0) {
-            return record;
+            return SyncJournalFileRecord{};
         }
     }
 
     const auto relativePath = path().mid(1);
-    if (_journal->getFileRecord(relativePath, &record) && record.isValid()) {
+    auto record = _journal->getFileRecord(relativePath);
+    if (record.isValid()) {
         setFileRecordLocked(record);
         if (_lockOwnerType != SyncFileItem::LockOwnerType::UserLock ||
                 _userId != account()->davUser()) {

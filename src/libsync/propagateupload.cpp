@@ -176,15 +176,6 @@ PropagateUploadFileCommon::PropagateUploadFileCommon(OwncloudPropagator *propaga
     , _uploadEncryptedHelper(nullptr)
     , _uploadingEncrypted(false)
 {
-    const auto path = _item->_file;
-    const auto slashPosition = path.lastIndexOf('/');
-    const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
-
-    SyncJournalFileRecord parentRec;
-    bool ok = propagator->_journal->getFileRecord(parentPath, &parentRec);
-    if (!ok) {
-        return;
-    }
 }
 
 void PropagateUploadFileCommon::setDeleteExisting(bool enabled)
@@ -210,9 +201,8 @@ void PropagateUploadFileCommon::start()
     const auto slashPosition = path.lastIndexOf('/');
     const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
 
-    SyncJournalFileRecord parentRec;
-    bool ok = propagator()->_journal->getFileRecord(parentPath, &parentRec);
-    if (!ok) {
+    const auto parentRec = propagator()->_journal->getFileRecord(parentPath);
+    if (!parentRec.isValid()) {
         done(SyncFileItem::NormalError);
         return;
     }

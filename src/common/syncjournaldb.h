@@ -59,10 +59,10 @@ public:
     static bool maybeMigrateDb(const QString &localPath, const QString &absoluteJournalPath);
 
     // To verify that the record could be found check with SyncJournalFileRecord::isValid()
-    bool getFileRecord(const QString &filename, SyncJournalFileRecord *rec) { return getFileRecord(filename.toUtf8(), rec); }
-    bool getFileRecord(const QByteArray &filename, SyncJournalFileRecord *rec);
-    bool getFileRecordByE2eMangledName(const QString &mangledName, SyncJournalFileRecord *rec);
-    bool getFileRecordByInode(quint64 inode, SyncJournalFileRecord *rec);
+    SyncJournalFileRecord getFileRecord(const QString &filename) { return getFileRecord(filename.toUtf8()); }
+    SyncJournalFileRecord getFileRecord(const QByteArray &filename);
+    SyncJournalFileRecord getFileRecordByE2eMangledName(const QString &mangledName);
+    SyncJournalFileRecord getFileRecordByInode(quint64 inode);
     bool getFileRecordsByFileId(const QByteArray &fileId, const std::function<void(const SyncJournalFileRecord &)> &rowCallback);
     bool getFilesBelowPath(const QByteArray &path, const std::function<void(const SyncJournalFileRecord&)> &rowCallback);
     bool listFilesInPath(const QByteArray &path, const std::function<void(const SyncJournalFileRecord&)> &rowCallback);

@@ -34,15 +34,6 @@ PropagateRemoteMkdir::PropagateRemoteMkdir(OwncloudPropagator *propagator, const
     , _deleteExisting(false)
     , _uploadEncryptedHelper(nullptr)
 {
-    const auto path = _item->_file;
-    const auto slashPosition = path.lastIndexOf('/');
-    const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
-
-    SyncJournalFileRecord parentRec;
-    bool ok = propagator->_journal->getFileRecord(parentPath, &parentRec);
-    if (!ok) {
-        return;
-    }
 }
 
 void PropagateRemoteMkdir::start()
@@ -186,9 +177,8 @@ void PropagateRemoteMkdir::slotMkdir()
     const auto slashPosition = path.lastIndexOf('/');
     const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
 
-    SyncJournalFileRecord parentRec;
-    bool ok = propagator()->_journal->getFileRecord(parentPath, &parentRec);
-    if (!ok) {
+    const auto parentRec = propagator()->_journal->getFileRecord(parentPath);
+    if (!parentRec.isValid()) {
         done(SyncFileItem::NormalError);
         return;
     }

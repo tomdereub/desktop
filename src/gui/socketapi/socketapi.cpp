@@ -1146,11 +1146,11 @@ SyncFileStatus SocketApi::FileData::syncFileStatus() const
 
 SyncJournalFileRecord SocketApi::FileData::journalRecord() const
 {
-    SyncJournalFileRecord record;
-    if (!folder)
-        return record;
-    folder->journalDb()->getFileRecord(folderRelativePath, &record);
-    return record;
+    if (!folder) {
+        return SyncJournalFileRecord{};
+    }
+    
+    return folder->journalDb()->getFileRecord(folderRelativePath);
 }
 
 SocketApi::FileData SocketApi::FileData::parentFolder() const
@@ -1323,6 +1323,9 @@ DirectEditor* SocketApi::getDirectEditorForLocalFile(const QString &localFile)
 
     if (fileData.folder && fileData.folder->accountState()->isConnected()) {
         const auto record = fileData.journalRecord();
+        if (!record.isValid()) {
+            return nullptr;
+        }
         const auto mimeMatchMode = record.isVirtualFile() ? QMimeDatabase::MatchExtension : QMimeDatabase::MatchDefault;
 
         QMimeDatabase db;

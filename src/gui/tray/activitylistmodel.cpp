@@ -152,8 +152,7 @@ QVariant ActivityListModel::data(const QModelIndex &index, int role) const
 
             // If this is an E2EE file or folder, pretend we got no path, hiding the share button which is what we want
             if (folder) {
-                SyncJournalFileRecord rec;
-                folder->journalDb()->getFileRecord(fileName.mid(1), &rec);
+                const auto rec = folder->journalDb()->getFileRecord(fileName.mid(1));
                 if (rec.isValid() && (rec._isE2eEncrypted || !rec._e2eMangledName.isEmpty())) {
                     return QString();
                 }

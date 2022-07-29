@@ -288,8 +288,7 @@ void OCC::HydrationJob::onNewConnection()
 void OCC::HydrationJob::finalize(OCC::VfsCfApi *vfs)
 {
     // Mark the file as hydrated in the sync journal
-    SyncJournalFileRecord record;
-    _journal->getFileRecord(_folderPath, &record);
+    auto record = _journal->getFileRecord(_folderPath);
     Q_ASSERT(record.isValid());
     if (!record.isValid()) {
         qCWarning(lcHydration) << "Couldn't find record to update after hydration" << _requestId << _folderPath;

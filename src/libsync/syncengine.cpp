@@ -301,8 +301,8 @@ void SyncEngine::conflictRecordMaintenance()
             record.initialBasePath = basePath;
 
             // Determine fileid of target file
-            SyncJournalFileRecord baseRecord;
-            if (_journal->getFileRecord(basePath, &baseRecord) && baseRecord.isValid()) {
+            const auto baseRecord = _journal->getFileRecord(basePath);
+            if (baseRecord.isValid()) {
                 record.baseFileId = baseRecord._fileId;
             }
 
@@ -337,10 +337,8 @@ void OCC::SyncEngine::slotItemDiscovered(const OCC::SyncFileItemPtr &item)
             QString filePath = _localPath + item->_file;
 
             // If the 'W' remote permission changed, update the local filesystem
-            SyncJournalFileRecord prev;
-            if (_journal->getFileRecord(item->_file, &prev)
-                && prev.isValid()
-                && prev._remotePerm.hasPermission(RemotePermissions::CanWrite) != item->_remotePerm.hasPermission(RemotePermissions::CanWrite)) {
+            const auto prev = _journal->getFileRecord(item->_file);
+            if (prev.isValid() && prev._remotePerm.hasPermission(RemotePermissions::CanWrite) != item->_remotePerm.hasPermission(RemotePermissions::CanWrite)) {
                 const bool isReadOnly = !item->_remotePerm.isNull() && !item->_remotePerm.hasPermission(RemotePermissions::CanWrite);
                 FileSystem::setFileReadOnlyWeak(filePath, isReadOnly);
             }

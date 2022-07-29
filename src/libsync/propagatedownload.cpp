@@ -458,8 +458,7 @@ void PropagateDownloadFile::start()
     const auto slashPosition = path.lastIndexOf('/');
     const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
 
-    SyncJournalFileRecord parentRec;
-    propagator()->_journal->getFileRecord(parentPath, &parentRec);
+    const auto parentRec = propagator()->_journal->getFileRecord(parentPath);
 
     const auto account = propagator()->account();
     if (!account->capabilities().clientSideEncryptionAvailable() ||
@@ -1039,8 +1038,8 @@ namespace { // Anonymous namespace for the recall feature
             // Path of the recalled file in the local folder
             QString localRecalledFile = recalledFile.mid(folderPath.size());
 
-            SyncJournalFileRecord record;
-            if (!journal.getFileRecord(localRecalledFile, &record) || !record.isValid()) {
+            const auto record = journal.getFileRecord(localRecalledFile);
+            if (!record.isValid()) {
                 qCWarning(lcPropagateDownload) << "No db entry for recall of" << localRecalledFile;
                 continue;
             }

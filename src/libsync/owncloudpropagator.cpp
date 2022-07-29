@@ -318,8 +318,7 @@ bool PropagateItemJob::hasEncryptedAncestor() const
 
     auto pathComponents = parentPath.split('/');
     while (!pathComponents.isEmpty()) {
-        SyncJournalFileRecord rec;
-        propagator()->_journal->getFileRecord(pathComponents.join('/'), &rec);
+        const auto rec = propagator()->_journal->getFileRecord(pathComponents.join('/'));
         if (rec.isValid() && rec._isE2eEncrypted) {
             return true;
         }
@@ -875,8 +874,8 @@ bool OwncloudPropagator::createConflict(const SyncFileItemPtr &item,
     conflictRecord.baseModtime = item->_previousModtime;
     conflictRecord.initialBasePath = item->_file.toUtf8();
 
-    SyncJournalFileRecord baseRecord;
-    if (_journal->getFileRecord(item->_originalFile, &baseRecord) && baseRecord.isValid()) {
+    const auto baseRecord = _journal->getFileRecord(item->_originalFile);
+    if (baseRecord.isValid()) {
         conflictRecord.baseEtag = baseRecord._etag;
         conflictRecord.baseFileId = baseRecord._fileId;
     } else {

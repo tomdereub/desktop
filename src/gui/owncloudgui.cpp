@@ -629,10 +629,10 @@ void ownCloudGui::slotShowShareDialog(const QString &sharePath, const QString &l
     const auto accountState = folder->accountState();
 
     const QString file = localPath.mid(folder->cleanPath().length() + 1);
-    SyncJournalFileRecord fileRecord;
 
     bool resharingAllowed = true; // lets assume the good
-    if (folder->journalDb()->getFileRecord(file, &fileRecord) && fileRecord.isValid()) {
+    const auto fileRecord = folder->journalDb()->getFileRecord(file);
+    if (fileRecord.isValid()) {
         // check the permission: Is resharing allowed?
         if (!fileRecord._remotePerm.isNull() && !fileRecord._remotePerm.hasPermission(RemotePermissions::CanReshare)) {
             resharingAllowed = false;

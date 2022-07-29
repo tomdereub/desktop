@@ -242,8 +242,8 @@ void PropagateLocalRename::start()
         }
     }
 
-    SyncJournalFileRecord oldRecord;
-    propagator()->_journal->getFileRecord(_item->_originalFile, &oldRecord);
+    const auto oldRecord = propagator()->_journal->getFileRecord(_item->_originalFile);
+    
     propagator()->_journal->deleteFileRecord(_item->_originalFile);
 
     auto &vfs = propagator()->syncOptions()._vfs;
