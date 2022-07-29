@@ -66,16 +66,14 @@ bool itemInstruction(const ItemCompletedSpy &spy, const QString &path, const Syn
 
 SyncJournalFileRecord dbRecord(FakeFolder &folder, const QString &path)
 {
-    SyncJournalFileRecord record;
-    folder.syncJournal().getFileRecord(path, &record);
+    const auto record = folder.syncJournal().getFileRecord(path);
     return record;
 }
 
 void triggerDownload(FakeFolder &folder, const QByteArray &path)
 {
     auto &journal = folder.syncJournal();
-    SyncJournalFileRecord record;
-    journal.getFileRecord(path, &record);
+    auto record = journal.getFileRecord(path);
     if (!record.isValid())
         return;
     record._type = ItemTypeVirtualFileDownload;
@@ -86,8 +84,7 @@ void triggerDownload(FakeFolder &folder, const QByteArray &path)
 void markForDehydration(FakeFolder &folder, const QByteArray &path)
 {
     auto &journal = folder.syncJournal();
-    SyncJournalFileRecord record;
-    journal.getFileRecord(path, &record);
+    auto record = journal.getFileRecord(path);
     if (!record.isValid())
         return;
     record._type = ItemTypeVirtualFileDehydration;
@@ -734,8 +731,7 @@ private slots:
                 && QFileInfo(fakeFolder.localPath() + path).exists();
         };
         auto hasDehydratedDbEntries = [&](const QString &path) {
-            SyncJournalFileRecord rec;
-            fakeFolder.syncJournal().getFileRecord(path, &rec);
+            const auto rec = fakeFolder.syncJournal().getFileRecord(path);
             return rec.isValid() && rec._type == ItemTypeVirtualFile;
         };
 

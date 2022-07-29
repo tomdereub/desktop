@@ -145,13 +145,12 @@ private slots:
 
         cleanup();
         // just add records from fake folder's journal to real one's to make test work
-        SyncJournalFileRecord record;
         auto realFolder = FolderMan::instance()->folderForPath(fakeFolder.localPath());
         QVERIFY(realFolder);
         for (const auto &dummyImageName : dummmyImageNames) {
-            if (fakeFolder.syncJournal().getFileRecord(dummyImageName, &record)) {
-                realFolder->journalDb()->setFileRecord(record);
-            }
+            const auto record = fakeFolder.syncJournal().getFileRecord(dummyImageName);
+            QVERIFY(record.isValid());
+            realFolder->journalDb()->setFileRecord(record);
         }
 
         // #1 Test every fake image fetching. Everything must succeed.

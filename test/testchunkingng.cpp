@@ -273,8 +273,7 @@ private slots:
         auto checkEtagUpdated = [&](SyncFileItemVector &items) {
             QCOMPARE(items.size(), 1);
             QCOMPARE(items[0]->_file, QLatin1String("A"));
-            SyncJournalFileRecord record;
-            QVERIFY(fakeFolder.syncJournal().getFileRecord(QByteArray("A/a0"), &record));
+            const auto record = fakeFolder.syncJournal().getFileRecord(QByteArray("A/a0"));
             QCOMPARE(record._etag, fakeFolder.remoteModifier().find("A/a0")->etag);
         };
         auto connection = connect(&fakeFolder.syncEngine(), &SyncEngine::aboutToPropagate, checkEtagUpdated);

@@ -210,8 +210,7 @@ private slots:
         fakeFolder.syncOnce();
 
         auto getDbChecksum = [&](QString path) {
-            SyncJournalFileRecord record;
-            fakeFolder.syncJournal().getFileRecord(path, &record);
+            const auto record = fakeFolder.syncJournal().getFileRecord(path);
             return record._checksumHeader;
         };
 
@@ -274,8 +273,7 @@ private slots:
                                                                 {"parentFolder/subFolderA/"});
         fakeFolder.syncEngine().journal()->schedulePathForRemoteDiscovery(QByteArrayLiteral("parentFolder/subFolderA/"));
         auto getEtag = [&](const QByteArray &file) {
-            SyncJournalFileRecord rec;
-            fakeFolder.syncJournal().getFileRecord(file, &rec);
+            const auto rec = fakeFolder.syncJournal().getFileRecord(file);
             return rec._etag;
         };
         QVERIFY(getEtag("parentFolder") == "_invalid_");
@@ -335,8 +333,7 @@ private slots:
         fakeFolder.remoteModifier().insert("NewFolder/foo");
         QVERIFY(!fakeFolder.syncOnce());
 
-        SyncJournalFileRecord rec;
-        fakeFolder.syncJournal().getFileRecord(QByteArrayLiteral("NewFolder"), &rec);
+        const auto rec = fakeFolder.syncJournal().getFileRecord(QByteArrayLiteral("NewFolder"));
         QVERIFY(rec.isValid());
         QCOMPARE(rec._etag, QByteArrayLiteral("_invalid_"));
         QVERIFY(!rec._fileId.isEmpty());
@@ -453,8 +450,7 @@ private slots:
 
         // check that mtime in journal and filesystem agree
         QString a1path = fakeFolder.localPath() + "A/a1";
-        SyncJournalFileRecord a1record;
-        fakeFolder.syncJournal().getFileRecord(QByteArray("A/a1"), &a1record);
+        const auto a1record = fakeFolder.syncJournal().getFileRecord(QByteArray("A/a1"));
         QCOMPARE(a1record._modtime, (qint64)FileSystem::getModTime(a1path));
 
         // Extra sync reads from db, no difference

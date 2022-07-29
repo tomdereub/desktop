@@ -77,8 +77,8 @@ void ShellExtensionsServer::processThumbnailRequest(QLocalSocket *socket, const 
     const auto fileInfo = QFileInfo(thumbnailRequestInfo.path);
     const auto filePathRelative = QFileInfo(thumbnailRequestInfo.path).canonicalFilePath().remove(folder->path());
 
-    SyncJournalFileRecord record;
-    if (!folder->journalDb()->getFileRecord(filePathRelative, &record) || !record.isValid()) {
+    const auto record = folder->journalDb()->getFileRecord(filePathRelative); 
+    if (!record.isValid()) {
         sendEmptyDataAndCloseSession(socket);
         return;
     }

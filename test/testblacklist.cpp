@@ -13,8 +13,7 @@ using namespace OCC;
 
 SyncJournalFileRecord journalRecord(FakeFolder &folder, const QByteArray &path)
 {
-    SyncJournalFileRecord rec;
-    folder.syncJournal().getFileRecord(path, &rec);
+    const auto rec = folder.syncJournal().getFileRecord(path);
     return rec;
 }
 

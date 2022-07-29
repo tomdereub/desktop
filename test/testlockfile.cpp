@@ -148,8 +148,8 @@ private slots:
         QVERIFY(jobSuccess.wait());
         QCOMPARE(jobFailure.count(), 0);
 
-        auto fileRecord = OCC::SyncJournalFileRecord{};
-        QVERIFY(fakeFolder.syncJournal().getFileRecord(testFileName, &fileRecord));
+        const auto fileRecord = fakeFolder.syncJournal().getFileRecord(testFileName);
+        QVERIFY(fileRecord.isValid());
         QCOMPARE(fileRecord._lockstate._locked, true);
         QCOMPARE(fileRecord._lockstate._lockEditorApp, QString{});
         QCOMPARE(fileRecord._lockstate._lockOwnerDisplayName, QStringLiteral("John Doe"));
@@ -193,8 +193,8 @@ private slots:
         QVERIFY(unlockFileJobSuccess.wait());
         QCOMPARE(unlockFileJobFailure.count(), 0);
 
-        auto fileRecord = OCC::SyncJournalFileRecord{};
-        QVERIFY(fakeFolder.syncJournal().getFileRecord(testFileName, &fileRecord));
+        const auto fileRecord = fakeFolder.syncJournal().getFileRecord(testFileName);
+        QVERIFY(fileRecord.isValid());
         QCOMPARE(fileRecord._lockstate._locked, false);
 
         QVERIFY(fakeFolder.syncOnce());

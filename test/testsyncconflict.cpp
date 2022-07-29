@@ -56,8 +56,7 @@ bool expectAndWipeConflict(FileModifier &local, FileInfo state, const QString pa
 
 SyncJournalFileRecord dbRecord(FakeFolder &folder, const QString &path)
 {
-    SyncJournalFileRecord record;
-    folder.syncJournal().getFileRecord(path, &record);
+    const auto record = folder.syncJournal().getFileRecord(path);
     return record;
 }
 
