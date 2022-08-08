@@ -37,7 +37,6 @@
 #include <QClipboard>
 #include <QFileInfo>
 #include <QAbstractProxyModel>
-#include <QCompleter>
 #include <QBoxLayout>
 #include <QIcon>
 #include <QLayout>
@@ -54,6 +53,7 @@
 #include <QSvgRenderer>
 #include <QPushButton>
 #include <QContextMenuEvent>
+#include <private/qcompleter_p.h>
 
 #include <cstring>
 
@@ -63,6 +63,17 @@ const char *passwordIsSetPlaceholder = "●●●●●●●●";
 }
 
 namespace OCC {
+
+ShareeSearchCompleter::ShareeSearchCompleter(QObject *parent)
+    : QCompleter(parent)
+{
+}
+
+void ShareeSearchCompleter::setPopup(QAbstractItemView *popup)
+{
+    QCompleter::setPopup(popup);
+    popup->setItemDelegate(new QCompleterItemDelegate(popup));
+}
 
 AvatarEventFilter::AvatarEventFilter(QObject *parent)
     : QObject(parent)
@@ -106,7 +117,7 @@ ShareUserGroupWidget::ShareUserGroupWidget(AccountPtr account,
     //Is this a file or folder?
     _isFile = QFileInfo(localPath).isFile();
 
-    _completer = new QCompleter(this);
+    _completer = new ShareeSearchCompleter(this);
     _completerModel = new ShareeModel(_account,
         _isFile ? QLatin1String("file") : QLatin1String("folder"),
         _completer);

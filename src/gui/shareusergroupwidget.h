@@ -23,6 +23,7 @@
 #include "QProgressIndicator.h"
 #include <QDialog>
 #include <QWidget>
+#include <QCompleter>
 #include <QSharedPointer>
 #include <QList>
 #include <QVector>
@@ -45,6 +46,13 @@ class AbstractCredentials;
 class SyncResult;
 class Share;
 class ShareManager;
+
+class ShareeSearchCompleter : public QCompleter
+{
+public:
+    ShareeSearchCompleter(QObject *parent);
+    void setPopup(QAbstractItemView *popup);
+};
 
 class AvatarEventFilter : public QObject
 {
@@ -122,7 +130,7 @@ private:
     SharePermissions _maxSharingPermissions;
     QString _privateLinkUrl;
 
-    QCompleter *_completer;
+    ShareeSearchCompleter *_completer;
     ShareeModel *_completerModel;
     QTimer _completionTimer;
 

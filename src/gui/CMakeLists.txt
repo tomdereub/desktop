@@ -559,6 +559,7 @@ target_link_libraries(nextcloudCore
   PUBLIC
   Nextcloud::sync
   Qt5::Widgets
+  Qt5::WidgetsPrivate
   Qt5::GuiPrivate
   Qt5::Svg
   Qt5::Network
