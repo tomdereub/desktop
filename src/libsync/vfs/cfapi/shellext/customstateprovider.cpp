@@ -19,6 +19,9 @@
 #include <QVector>
 #include <QRandomGenerator>
 
+
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
 namespace winrt::CfApiShellExtensions::implementation {
 
 winrt::Windows::Foundation::Collections::IIterable<winrt::Windows::Storage::Provider::StorageProviderItemProperty>
@@ -38,22 +41,28 @@ CustomStateProvider::GetItemProperties(hstring const &itemPath)
     std::string iconResourceLog;
 
     const QVector<QPair<qint32, qint32>> listStates = {
-        { 1, 77 },
-        {2, -14},
-        {3, 76}
+        { 1, 0 },
+        { 2, 1 }
     };
 
-    int randomStateIndex = QRandomGenerator::global()->bounded(0, 3);
+    LPTSTR strDLLPath1 = new TCHAR[_MAX_PATH];
+    ::GetModuleFileName((HINSTANCE)&__ImageBase, strDLLPath1, _MAX_PATH);
 
-    if ((hash & 0x1) != 0) {
-        winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
-        itemProperty.Id(listStates.at(randomStateIndex).first);
-        itemProperty.Value(QString("Value%1").arg(listStates.at(randomStateIndex).first).toStdWString().c_str());
-        // This icon is just for the sample. You should provide your own branded icon here
-        itemProperty.IconResource(QString("shell32.dll,%1").arg(listStates.at(randomStateIndex).second).toStdWString().c_str());
-        iconResourceLog = winrt::to_string(itemProperty.IconResource());
-        properties.push_back(std::move(itemProperty));
-    }
+    int randomStateIndex = 0;
+    winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
+    itemProperty.Id(listStates.at(randomStateIndex).first);
+    itemProperty.Value(QString("Value%1").arg(listStates.at(randomStateIndex).first).toStdWString().c_str());
+    itemProperty.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")).arg(listStates.at(randomStateIndex).second).toStdWString().c_str());
+    iconResourceLog = winrt::to_string(itemProperty.IconResource());
+    properties.push_back(std::move(itemProperty));
+
+    int randomStateIndex1 = 1;
+    winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty1;
+    itemProperty1.Id(listStates.at(randomStateIndex1).first);
+    itemProperty1.Value(QString("Value%1").arg(listStates.at(randomStateIndex1).first).toStdWString().c_str());
+    itemProperty1.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")) .arg(listStates.at(randomStateIndex1).second).toStdWString().c_str());
+    iconResourceLog = winrt::to_string(itemProperty1.IconResource());
+    properties.push_back(std::move(itemProperty1));
 
     return winrt::single_threaded_vector(std::move(properties));
 }
