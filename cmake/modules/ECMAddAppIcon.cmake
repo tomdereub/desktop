@@ -204,6 +204,7 @@ function(ecm_add_app_icon appsources)
         set(CMAKE_MODULE_PATH "${saved_CMAKE_MODULE_PATH}")
 
         function(create_windows_icon_and_rc command args deps)
+        message("create_windows_icon_and_rc: ${command} ${args} ${deps}")
                 add_custom_command(
                     OUTPUT "${_outfilename}.ico"
                     COMMAND ${command}
@@ -258,6 +259,7 @@ function(ecm_add_app_icon appsources)
         # or similar on windows, which is why we provide resolutions >= 256px here.
         # Standard png2ico will fail with this.
         elseif(Png2Ico_FOUND AND NOT Png2Ico_HAS_RCFILE_ARGUMENT AND windows_icons)
+        message("Png2Ico_FOUND: ${Png2Ico_FOUND} ${_outfilename}.ico")
             set(png2ico_args)
             list(APPEND png2ico_args "${_outfilename}.ico")
             list(APPEND png2ico_args "${windows_icons}")
