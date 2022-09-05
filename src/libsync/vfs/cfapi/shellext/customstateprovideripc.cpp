@@ -12,7 +12,7 @@
  * for more details.
  */
 
-#include "thumbnailprovideripc.h"
+#include "customstateprovideripc.h"
 #include "common/shellextensionutils.h"
 #include "common/utility.h"
 #include <QString>
@@ -24,23 +24,22 @@
 #include <Windows.h>
 namespace {
 // we don't want to block the Explorer for too long (default is 30K, so we'd keep it at 10K, except QLocalSocket::waitForDisconnected())
-constexpr auto socketTimeoutMs = 10000;
+constexpr auto socketTimeoutMs = 60000;
 }
 
 namespace VfsShellExtensions {
 
-ThumbnailProviderIpc::ThumbnailProviderIpc()
+CustomStateProviderIpc::CustomStateProviderIpc()
 {
     _localSocket.reset(new QLocalSocket());
 }
-ThumbnailProviderIpc::~ThumbnailProviderIpc()
+CustomStateProviderIpc::~CustomStateProviderIpc()
 {
     disconnectSocketFromServer();
 }
 
-QByteArray ThumbnailProviderIpc::fetchThumbnailForFile(const QString &filePath, const QSize &size)
+QVariantMap CustomStateProviderIpc::fetchCustomStatesForFile(const QString &filePath)
 {
-    QByteArray result;
     const auto sendMessageAndReadyRead = [this](QVariantMap &message) {
         _localSocket->write(VfsShellExtensions::Protocol::createJsonMessage(message));
         return _localSocket->waitForBytesWritten(socketTimeoutMs) && _localSocket->waitForReadyRead(socketTimeoutMs);
@@ -49,41 +48,40 @@ QByteArray ThumbnailProviderIpc::fetchThumbnailForFile(const QString &filePath, 
     const auto mainServerName = getServerNameForPath(filePath);
 
     if (mainServerName.isEmpty()) {
-        return result;
+        return {};
     }
 
     // #1 Connect to the local server
     if (!connectSocketToServer(mainServerName)) {
-        return result;
+        return {};
     }
 
-    auto messageRequestThumbnailForFile = QVariantMap {
+    auto messageRequestCustomStatesForFile = QVariantMap {
         {
-            VfsShellExtensions::Protocol::ThumbnailProviderRequestKey,
+            VfsShellExtensions::Protocol::CustomStateProviderRequestKey,
             QVariantMap {
-                {VfsShellExtensions::Protocol::FilePathKey, filePath},
-                {VfsShellExtensions::Protocol::ThumbnailProviderRequestFileSizeKey, QVariantMap{{QStringLiteral("width"), size.width()}, {QStringLiteral("height"), size.height()}}}
+                { VfsShellExtensions::Protocol::FilePathKey, filePath }
             }
         }
     };
 
-    // #2 Request a thumbnail of a 'size' for a 'filePath'
-    if (!sendMessageAndReadyRead(messageRequestThumbnailForFile)) {
-        return result;
+    // #2 Request custom states for a 'filePath'
+    if (!sendMessageAndReadyRead(messageRequestCustomStatesForFile)) {
+        return {};
     }
 
-    // #3 Read the thumbnail data (read all as the thumbnail size is usually less than 1MB)
+    // #3 Receive custom states as JSON
     const auto message = QJsonDocument::fromJson(_localSocket->readAll()).toVariant().toMap();
-    if (!VfsShellExtensions::Protocol::validateProtocolVersion(message)) {
-        return result;
+    if (!VfsShellExtensions::Protocol::validateProtocolVersion(message) || !message.contains(VfsShellExtensions::Protocol::CustomStateDataKey)) {
+        return {};
     }
-    result = QByteArray::fromBase64(message.value(VfsShellExtensions::Protocol::ThumnailProviderDataKey).toByteArray());
+    const auto customStates = message.value(VfsShellExtensions::Protocol::CustomStateDataKey).toMap();
     disconnectSocketFromServer();
 
-    return result;
+    return customStates;
 }
 
-bool ThumbnailProviderIpc::disconnectSocketFromServer()
+bool CustomStateProviderIpc::disconnectSocketFromServer()
 {
     const auto isConnectedOrConnecting = _localSocket->state() == QLocalSocket::ConnectedState || _localSocket->state() == QLocalSocket::ConnectingState;
     if (isConnectedOrConnecting) {
@@ -94,7 +92,7 @@ bool ThumbnailProviderIpc::disconnectSocketFromServer()
     return true;
 }
 
-QString ThumbnailProviderIpc::getServerNameForPath(const QString &filePath)
+QString CustomStateProviderIpc::getServerNameForPath(const QString &filePath)
 {
     if (!overrideServerName.isEmpty()) {
         return overrideServerName;
@@ -121,7 +119,7 @@ QString ThumbnailProviderIpc::getServerNameForPath(const QString &filePath)
     return serverName;
 }
 
-bool ThumbnailProviderIpc::connectSocketToServer(const QString &serverName)
+bool CustomStateProviderIpc::connectSocketToServer(const QString &serverName)
 {
     if (!disconnectSocketFromServer()) {
         return false;
@@ -130,5 +128,5 @@ bool ThumbnailProviderIpc::connectSocketToServer(const QString &serverName)
     _localSocket->connectToServer();
     return _localSocket->state() == QLocalSocket::ConnectedState || _localSocket->waitForConnected(socketTimeoutMs);
 }
-QString ThumbnailProviderIpc::overrideServerName = {};
+QString CustomStateProviderIpc::overrideServerName = {};
 }

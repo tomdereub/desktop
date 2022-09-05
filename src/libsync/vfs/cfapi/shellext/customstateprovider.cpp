@@ -13,6 +13,7 @@
  */
 
 #include "customstateprovider.h"
+#include "customstateprovideripc.h"
 #include <Shlguid.h>
 #include <string>
 #include <QString>
@@ -27,8 +28,7 @@ namespace winrt::CfApiShellExtensions::implementation {
 winrt::Windows::Foundation::Collections::IIterable<winrt::Windows::Storage::Provider::StorageProviderItemProperty>
 CustomStateProvider::GetItemProperties(hstring const &itemPath)
 {
-    std::hash<std::wstring> hashFunc;
-    const auto hash = hashFunc(itemPath.c_str());
+    VfsShellExtensions::CustomStateProviderIpc customStateProviderIpc;
 
     std::vector<winrt::Windows::Storage::Provider::StorageProviderItemProperty> properties;
 
@@ -38,31 +38,34 @@ CustomStateProvider::GetItemProperties(hstring const &itemPath)
         return winrt::single_threaded_vector(std::move(properties));
     }
 
-    std::string iconResourceLog;
+    const auto states = customStateProviderIpc.fetchCustomStatesForFile(QString::fromStdString(itemPathString));
 
-    const QVector<QPair<qint32, qint32>> listStates = {
-        { 1, 0 },
-        { 2, 1 }
-    };
+    const auto isShared = states.value(QLatin1Literal("isShared")).toBool();
+    const auto isLocked = states.value(QLatin1Literal("isLocked")).toBool();
+
+    if (!isShared && !isLocked) {
+        properties.clear();
+        return winrt::single_threaded_vector(std::move(properties));
+    }
 
     LPTSTR strDLLPath1 = new TCHAR[_MAX_PATH];
     ::GetModuleFileName((HINSTANCE)&__ImageBase, strDLLPath1, _MAX_PATH);
 
-    int randomStateIndex = 0;
-    winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
-    itemProperty.Id(listStates.at(randomStateIndex).first);
-    itemProperty.Value(QString("Value%1").arg(listStates.at(randomStateIndex).first).toStdWString().c_str());
-    itemProperty.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")).arg(listStates.at(randomStateIndex).second).toStdWString().c_str());
-    iconResourceLog = winrt::to_string(itemProperty.IconResource());
-    properties.push_back(std::move(itemProperty));
+    if (isLocked) {
+        winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
+        itemProperty.Id(1);
+        itemProperty.Value(L"Value1");
+        itemProperty.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")).arg(0).toStdWString().c_str());
+        properties.push_back(std::move(itemProperty));
+    }
 
-    int randomStateIndex1 = 1;
-    winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty1;
-    itemProperty1.Id(listStates.at(randomStateIndex1).first);
-    itemProperty1.Value(QString("Value%1").arg(listStates.at(randomStateIndex1).first).toStdWString().c_str());
-    itemProperty1.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")) .arg(listStates.at(randomStateIndex1).second).toStdWString().c_str());
-    iconResourceLog = winrt::to_string(itemProperty1.IconResource());
-    properties.push_back(std::move(itemProperty1));
+    if (isShared) {
+        winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
+        itemProperty.Id(2);
+        itemProperty.Value(L"Value2");
+        itemProperty.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")).arg(1).toStdWString().c_str());
+        properties.push_back(std::move(itemProperty));
+    }
 
     return winrt::single_threaded_vector(std::move(properties));
 }

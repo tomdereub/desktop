@@ -18,6 +18,7 @@
 #include "common/shellextensionutils.h"
 #include "folder.h"
 #include "folderman.h"
+#include "libsync/syncengine.h"
 #include <QDir>
 #include <QJsonDocument>
 #include <QLocalSocket>
@@ -58,6 +59,42 @@ void ShellExtensionsServer::closeSession(QLocalSocket *socket)
         socket->deleteLater();
     });
     socket->disconnectFromServer();
+}
+
+void ShellExtensionsServer::processCustomStateRequest(QLocalSocket *socket, const CustomStateRequestInfo &customStateRequestInfo)
+{
+    if (!customStateRequestInfo.isValid()) {
+        sendEmptyDataAndCloseSession(socket);
+        return;
+    }
+
+    const auto folder = FolderMan::instance()->folder(customStateRequestInfo.folderAlias);
+
+    if (!folder) {
+        sendEmptyDataAndCloseSession(socket);
+        return;
+    }
+
+    const auto fileInfo = QFileInfo(customStateRequestInfo.path);
+    const auto filePathRelative = QFileInfo(customStateRequestInfo.path).canonicalFilePath().remove(folder->path());
+
+    SyncJournalFileRecord record;
+    if (!folder->journalDb()->getFileRecord(filePathRelative, &record) || !record.isValid()) {
+        sendEmptyDataAndCloseSession(socket);
+        return;
+    }
+
+    const auto messageReplyWithCustomStates = QVariantMap{
+        { 
+            VfsShellExtensions::Protocol::CustomStateDataKey, 
+            QVariantMap {
+                { QLatin1Literal("isLocked"), record._lockstate._locked },
+                { QLatin1Literal("isShared"), record._remotePerm.hasPermission(RemotePermissions::IsShared) }
+            }
+        }
+    };
+    sendJsonMessageWithVersion(socket, messageReplyWithCustomStates);
+    closeSession(socket);
 }
 
 void ShellExtensionsServer::processThumbnailRequest(QLocalSocket *socket, const ThumbnailRequestInfo &thumbnailRequestInfo)
@@ -121,8 +158,53 @@ void ShellExtensionsServer::slotNewConnection()
         return;
     }
 
+    if (message.contains(VfsShellExtensions::Protocol::ThumbnailProviderRequestKey)) {
+        parseThumbnailRequest(socket, message);
+        return;
+    } else if (message.contains(VfsShellExtensions::Protocol::CustomStateProviderRequestKey)) {
+        parseCustomStateRequest(socket, message);
+        return;
+    }
+
+    sendEmptyDataAndCloseSession(socket);
+    return;
+}
+
+void ShellExtensionsServer::parseCustomStateRequest(QLocalSocket *socket, const QVariantMap &message)
+{
+    const auto customStateRequestMessage = message.value(VfsShellExtensions::Protocol::CustomStateProviderRequestKey).toMap();
+    const auto itemFilePath = QDir::fromNativeSeparators(customStateRequestMessage.value(VfsShellExtensions::Protocol::FilePathKey).toString());
+
+    if (itemFilePath.isEmpty()) {
+        sendEmptyDataAndCloseSession(socket);
+        return;
+    }
+
+    QString foundFolderAlias;
+    for (const auto folder : FolderMan::instance()->map()) {
+        if (itemFilePath.startsWith(folder->path())) {
+            foundFolderAlias = folder->alias();
+            break;
+        }
+    }
+
+    if (foundFolderAlias.isEmpty()) {
+        sendEmptyDataAndCloseSession(socket);
+        return;
+    }
+    
+    const auto customStateRequestInfo = CustomStateRequestInfo {
+        itemFilePath,
+        foundFolderAlias
+    };
+
+    processCustomStateRequest(socket, customStateRequestInfo);
+}
+
+void ShellExtensionsServer::parseThumbnailRequest(QLocalSocket *socket, const QVariantMap &message)
+{
     const auto thumbnailRequestMessage = message.value(VfsShellExtensions::Protocol::ThumbnailProviderRequestKey).toMap();
-    const auto thumbnailFilePath = QDir::fromNativeSeparators(thumbnailRequestMessage.value(VfsShellExtensions::Protocol::ThumbnailProviderRequestFilePathKey).toString());
+    const auto thumbnailFilePath = QDir::fromNativeSeparators(thumbnailRequestMessage.value(VfsShellExtensions::Protocol::FilePathKey).toString());
     const auto thumbnailFileSize = thumbnailRequestMessage.value(VfsShellExtensions::Protocol::ThumbnailProviderRequestFileSizeKey).toMap();
 
     if (thumbnailFilePath.isEmpty() || thumbnailFileSize.isEmpty()) {

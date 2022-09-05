@@ -222,6 +222,7 @@ add_custom_command(OUTPUT ${MidlOutputPathHeader}
 add_library(CfApiShellExtensions MODULE
     dllmain.cpp
     cfapishellintegrationclassfactory.cpp
+    customstateprovideripc.cpp
     thumbnailprovider.cpp
 	thumbnailprovideripc.cpp
     ${CMAKE_SOURCE_DIR}/src/common/shellextensionutils.cpp
