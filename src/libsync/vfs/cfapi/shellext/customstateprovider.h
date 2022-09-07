@@ -17,6 +17,7 @@
 #include "config.h"
 #include <winrt/windows.foundation.collections.h>
 #include <windows.storage.provider.h>
+#include <QString>
 
 namespace winrt::CfApiShellExtensions::implementation {
 struct __declspec(uuid(CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID)) CustomStateProvider
@@ -26,6 +27,10 @@ public:
     CustomStateProvider() = default;
     Windows::Foundation::Collections::IIterable<Windows::Storage::Provider::StorageProviderItemProperty>
     GetItemProperties(_In_ hstring const &itemPath);
+
+    static void setDllFilePath(LPCTSTR dllFilePath);
+private:
+    static QString _dllFilePath;
 };
 }
 

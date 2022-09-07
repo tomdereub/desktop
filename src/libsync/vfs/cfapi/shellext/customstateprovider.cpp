@@ -16,46 +16,57 @@
 #include "customstateprovideripc.h"
 #include <Shlguid.h>
 #include <string>
-#include <QString>
 #include <QVector>
 #include <QRandomGenerator>
-
-
-EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 namespace winrt::CfApiShellExtensions::implementation {
 
 winrt::Windows::Foundation::Collections::IIterable<winrt::Windows::Storage::Provider::StorageProviderItemProperty>
 CustomStateProvider::GetItemProperties(hstring const &itemPath)
 {
-    VfsShellExtensions::CustomStateProviderIpc customStateProviderIpc;
-
     std::vector<winrt::Windows::Storage::Provider::StorageProviderItemProperty> properties;
 
-    const auto itemPathString = winrt::to_string(itemPath);
-    if (itemPathString.find(std::string(".sync_")) != std::string::npos
-        || itemPathString.find(std::string(".owncloudsync.log")) != std::string::npos) {
+    if (_dllFilePath.isEmpty()) {
         return winrt::single_threaded_vector(std::move(properties));
     }
 
-    const auto states = customStateProviderIpc.fetchCustomStatesForFile(QString::fromStdString(itemPathString));
+    const auto itemPathString = QString::fromStdString(winrt::to_string(itemPath));
 
-    const auto isShared = states.value(QLatin1Literal("isShared")).toBool();
-    const auto isLocked = states.value(QLatin1Literal("isLocked")).toBool();
+    const auto isItemPathValid = [&itemPathString]() {
+        if (itemPathString.isEmpty()) {
+            return false;
+        }
+
+        const auto itemPathSplit = itemPathString.split(QStringLiteral("\\"), Qt::SkipEmptyParts);
+
+        if (itemPathSplit.size() > 0) {
+            const auto itemName = itemPathSplit.last();
+            return !itemName.startsWith(QStringLiteral(".sync_")) && !itemName.startsWith(QStringLiteral(".owncloudsync.log"));
+        }
+
+        return true;
+    }();
+
+    if (!isItemPathValid) {
+        return winrt::single_threaded_vector(std::move(properties));
+    }
+
+    VfsShellExtensions::CustomStateProviderIpc customStateProviderIpc;
+
+    const auto states = customStateProviderIpc.fetchCustomStatesForFile(itemPathString);
+
+    const auto isShared = states.value(QStringLiteral("isShared")).toBool();
+    const auto isLocked = states.value(QStringLiteral("isLocked")).toBool();
 
     if (!isShared && !isLocked) {
-        properties.clear();
         return winrt::single_threaded_vector(std::move(properties));
     }
-
-    LPTSTR strDLLPath1 = new TCHAR[_MAX_PATH];
-    ::GetModuleFileName((HINSTANCE)&__ImageBase, strDLLPath1, _MAX_PATH);
 
     if (isLocked) {
         winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
         itemProperty.Id(1);
         itemProperty.Value(L"Value1");
-        itemProperty.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")).arg(0).toStdWString().c_str());
+        itemProperty.IconResource(_dllFilePath.toStdWString() + L",0");
         properties.push_back(std::move(itemProperty));
     }
 
@@ -63,10 +74,19 @@ CustomStateProvider::GetItemProperties(hstring const &itemPath)
         winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
         itemProperty.Id(2);
         itemProperty.Value(L"Value2");
-        itemProperty.IconResource(QString(QString::fromWCharArray(strDLLPath1) + QString(",%1")).arg(1).toStdWString().c_str());
+        itemProperty.IconResource(_dllFilePath.toStdWString() + L",1");
         properties.push_back(std::move(itemProperty));
     }
 
     return winrt::single_threaded_vector(std::move(properties));
 }
+void CustomStateProvider::setDllFilePath(LPCTSTR dllFilePath)
+{
+    _dllFilePath = QString::fromWCharArray(dllFilePath);
+    if (!_dllFilePath.endsWith(QStringLiteral(".dll"))) {
+        _dllFilePath.clear();
+    }
+}
+
+QString CustomStateProvider::_dllFilePath;
 }

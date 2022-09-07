@@ -33,6 +33,9 @@ STDAPI_(BOOL) DllMain(HINSTANCE hInstance, DWORD dwReason, void *)
 {
     if (dwReason == DLL_PROCESS_ATTACH) {
         instanceHandle = hInstance;
+        wchar_t dllFilePath[_MAX_PATH] = {0};
+        ::GetModuleFileName(instanceHandle, dllFilePath, _MAX_PATH);
+        winrt::CfApiShellExtensions::implementation::CustomStateProvider::setDllFilePath(dllFilePath);
         DisableThreadLibraryCalls(hInstance);
     }
 
