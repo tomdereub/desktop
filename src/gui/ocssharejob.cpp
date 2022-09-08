@@ -28,12 +28,17 @@ OcsShareJob::OcsShareJob(AccountPtr account)
     connect(this, &OcsJob::jobFinished, this, &OcsShareJob::jobDone);
 }
 
-void OcsShareJob::getShares(const QString &path)
+void OcsShareJob::getShares(const QString &path, const QMap<QString, QString> &params)
 {
     setVerb("GET");
 
     addParam(QString::fromLatin1("path"), path);
     addParam(QString::fromLatin1("reshares"), QString("true"));
+
+    for (auto it = std::cbegin(params); it != std::cend(params); ++it) {
+        addParam(it.key(), it.value());
+    }
+
     addPassStatusCode(404);
 
     start();

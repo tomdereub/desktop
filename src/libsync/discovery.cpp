@@ -463,6 +463,8 @@ void ProcessDirectoryJob::processFileAnalyzeRemoteInfo(
     item->_checksumHeader = serverEntry.checksumHeader;
     item->_fileId = serverEntry.fileId;
     item->_remotePerm = serverEntry.remotePerm;
+    item->_isShared = serverEntry.remotePerm.hasPermission(RemotePermissions::IsShared);
+    item->_lastShareStateFetchedTimestmap = QDateTime::currentMSecsSinceEpoch();
     item->_type = serverEntry.isDirectory ? ItemTypeDirectory : ItemTypeFile;
     item->_etag = serverEntry.etag;
     item->_directDownloadUrl = serverEntry.directDownloadUrl;
@@ -610,6 +612,8 @@ void ProcessDirectoryJob::processFileAnalyzeRemoteInfo(
         item->_direction = SyncFileItem::Up;
         item->_fileId = serverEntry.fileId;
         item->_remotePerm = serverEntry.remotePerm;
+        item->_isShared = serverEntry.remotePerm.hasPermission(RemotePermissions::IsShared);
+        item->_lastShareStateFetchedTimestmap = QDateTime::currentMSecsSinceEpoch();
         item->_etag = serverEntry.etag;
         item->_type = serverEntry.isDirectory ? CSyncEnums::ItemTypeDirectory : CSyncEnums::ItemTypeFile;
 
@@ -895,6 +899,8 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
         item->_remotePerm = base.isValid() ? base._remotePerm : RemotePermissions{};
         item->_etag = base.isValid() ? base._etag : QByteArray{};
         item->_type = base.isValid() ? base._type : localEntry.type;
+        item->_isShared = base.isValid() ? base._isShared : false;
+        item->_lastShareStateFetchedTimestmap = base.isValid() ? base._lastShareStateFetchedTimestmap : 0;
     };
 
     if (!localEntry.isValid()) {
@@ -1302,6 +1308,8 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
         item->_direction = SyncFileItem::Up;
         item->_fileId = base._fileId;
         item->_remotePerm = base._remotePerm;
+        item->_isShared = base._isShared;
+        item->_lastShareStateFetchedTimestmap = base._lastShareStateFetchedTimestmap;
         item->_etag = base._etag;
         item->_type = base._type;
 
@@ -1427,6 +1435,8 @@ void ProcessDirectoryJob::processFileConflict(const SyncFileItemPtr &item, Proce
             rec._type = item->_type;
             rec._fileSize = serverEntry.size;
             rec._remotePerm = serverEntry.remotePerm;
+            rec._isShared = serverEntry.remotePerm.hasPermission(RemotePermissions::IsShared);
+            rec._lastShareStateFetchedTimestmap = QDateTime::currentMSecsSinceEpoch();
             rec._checksumHeader = serverEntry.checksumHeader;
             const auto result = _discoveryData->_statedb->setFileRecord(rec);
             if (!result) {

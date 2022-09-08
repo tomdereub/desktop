@@ -108,6 +108,8 @@ public:
      */
     void addRawHeader(const QByteArray &headerName, const QByteArray &value);
 
+    QString getParamValue(const QString &key) const;
+
 
 protected slots:
 

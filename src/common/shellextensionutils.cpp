@@ -25,6 +25,9 @@ namespace Protocol {
 
     bool validateProtocolVersion(const QVariantMap &message)
     {
+        if (message.isEmpty()) {
+            return false;
+        }
         const auto valid = message.value(QStringLiteral("version")) == Version;
         if (!valid) {
             qCWarning(lcShellExtensionUtils) << "Invalid shell extensions IPC protocol: " << message.value(QStringLiteral("version")) << " vs " << Version;

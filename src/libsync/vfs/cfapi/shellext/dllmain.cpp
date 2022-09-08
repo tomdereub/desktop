@@ -55,8 +55,10 @@ STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void **ppv)
 HRESULT CustomStateProvider_CreateInstance(REFIID riid, void **ppv)
 {
     try {
-        const auto customStateProviderInstance = winrt::make_self<winrt::CfApiShellExtensions::implementation::CustomStateProvider>();
-        return customStateProviderInstance->QueryInterface(riid, ppv);
+        const auto customStateProvider = winrt::make_self<winrt::CfApiShellExtensions::implementation::CustomStateProvider>().detach();
+        const auto hresult = customStateProvider->QueryInterface(riid, ppv);
+        customStateProvider->Release();
+        return hresult;
     } catch (_com_error exc) {
         return exc.Error();
     }

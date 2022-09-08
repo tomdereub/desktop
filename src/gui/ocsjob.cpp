@@ -58,6 +58,19 @@ void OcsJob::addRawHeader(const QByteArray &headerName, const QByteArray &value)
     _request.setRawHeader(headerName, value);
 }
 
+QString OcsJob::getParamValue(const QString &key) const
+{
+    const auto foundParam = std::find_if(std::cbegin(_params), std::cend(_params), [&key](const auto &currentParam) {
+        return currentParam.first == key;
+    });
+
+    if (foundParam != std::cend(_params)) {
+        return foundParam->second;
+    }
+
+    return {};
+}
+
 static QUrlQuery percentEncodeQueryItems(
     const QList<QPair<QString, QString>> &items)
 {

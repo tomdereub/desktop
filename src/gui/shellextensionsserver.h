@@ -15,7 +15,9 @@
 #pragma once
 
 #include <QObject>
+#include <QJsonDocument>
 #include <QLocalServer>
+#include <QMutex>
 #include <QSize>
 #include <QVariant>
 
@@ -46,6 +48,9 @@ public:
     ShellExtensionsServer(QObject *parent = nullptr);
     ~ShellExtensionsServer() override;
 
+signals:
+    void fetchSharesJobFinished(const QString &path);
+
 private:
     void sendJsonMessageWithVersion(QLocalSocket *socket, const QVariantMap &message);
     void sendEmptyDataAndCloseSession(QLocalSocket *socket);
@@ -58,8 +63,13 @@ private:
 
 private slots:
     void slotNewConnection();
+    void slotSharesFetched(const QJsonDocument &reply);
+    void slotSharesFetchError(int statusCode, const QString &message);
 
 private:
     QLocalServer _localServer;
+    QMutex _runningFetchShareJobsMutex;
+    QStringList _runningFetchShareJobsForPaths;
+    QMap<qintptr, QMetaObject::Connection> _customStateSocketConnection;
 };
 } // namespace OCC
