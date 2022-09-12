@@ -1,0 +1,5 @@
+function(merge_files IN_FILE OUT_FILE)
+  file(READ ${IN_FILE} CONTENTS)
+  message("Merging ${IN_FILE} into ${OUT_FILE}")
+  file(APPEND ${OUT_FILE} "${CONTENTS}")
+endfunction()
