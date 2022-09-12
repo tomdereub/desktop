@@ -116,7 +116,7 @@ message("CUSTOM_STATE_ICON_SHARED: ${CUSTOM_STATE_ICON_SHARED}")
 
 # Windows SDK command-line tools require native paths
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" MidleFileFolder)
-set(GeneratedFilesPath "${MidleFileFolder}\\Generated")
+set(GeneratedFilesPath "${CMAKE_CURRENT_BINARY_DIR}\\Generated")
 set(MidlOutputPathHeader "${GeneratedFilesPath}\\CustomStateProvider.g.h")
 set(MidlOutputPathTlb "${GeneratedFilesPath}\\CustomStateProvider.tlb")
 set(MidlOutputPathWinmd "${GeneratedFilesPath}\\CustomStateProvider.winmd")
@@ -235,6 +235,7 @@ add_dependencies(CfApiShellExtensions CustomStateProviderImpl)
 
 target_link_libraries(CfApiShellExtensions shlwapi Gdiplus Nextcloud::csync Qt5::Core Qt5::Network)
 
+target_include_directories(CfApiShellExtensions PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(CfApiShellExtensions PRIVATE ${GeneratedFilesPath})
 
 target_include_directories(CfApiShellExtensions PRIVATE ${CMAKE_SOURCE_DIR})

@@ -24,6 +24,11 @@
 #include <QJsonObject>
 #include <QLocalSocket>
 
+namespace {
+constexpr auto customStatesSharesFetchInterval = 30 * 1000;
+constexpr auto folderAliasPropertyKey = "folderAlias";
+}
+
 namespace OCC {
 
 ShellExtensionsServer::ShellExtensionsServer(QObject *parent)
@@ -35,12 +40,15 @@ ShellExtensionsServer::ShellExtensionsServer(QObject *parent)
 
 ShellExtensionsServer::~ShellExtensionsServer()
 {
-    for (const auto &connection : _customStateSocketConnection) {
-        if (connection) {
-            QObject::disconnect(connection);
+    {
+        QMutexLocker locker(&_customStateSocketConnectionsMutex);
+        for (const auto &connection : _customStateSocketConnections) {
+            if (connection) {
+                QObject::disconnect(connection);
+            }
         }
+        _customStateSocketConnections.clear();
     }
-    _customStateSocketConnection.clear();
 
     if (!_localServer.isListening()) {
         return;
@@ -69,8 +77,7 @@ void ShellExtensionsServer::closeSession(QLocalSocket *socket)
     socket->disconnectFromServer();
 }
 
-void ShellExtensionsServer::processCustomStateRequest(
-    QLocalSocket *socket, const CustomStateRequestInfo &customStateRequestInfo)
+void ShellExtensionsServer::processCustomStateRequest(QLocalSocket *socket, const CustomStateRequestInfo &customStateRequestInfo)
 {
     if (!customStateRequestInfo.isValid()) {
         sendEmptyDataAndCloseSession(socket);
@@ -84,77 +91,76 @@ void ShellExtensionsServer::processCustomStateRequest(
         return;
     }
 
-    const auto fileInfo = QFileInfo(customStateRequestInfo.path);
-    const auto filePathRelative = QFileInfo(customStateRequestInfo.path).canonicalFilePath().remove(folder->path());
+    const auto filePathRelative = QString(customStateRequestInfo.path).remove(folder->path());
 
     SyncJournalFileRecord record;
-    if (!folder->journalDb()->getFileRecord(filePathRelative, &record) || !record.isValid()
-        || record.path().isEmpty()) {
+    if (!folder->journalDb()->getFileRecord(filePathRelative, &record) || !record.isValid() || record.path().isEmpty()) {
+        qWarning() << "Record not found in SyncJournal for: " << filePathRelative;
         sendEmptyDataAndCloseSession(socket);
         return;
     }
 
-    constexpr auto sharesFetchInterval = 30 * 1000;
+    const auto composeMessageReplyFromRecord = [](const SyncJournalFileRecord &record) {
+        return QVariantMap{{VfsShellExtensions::Protocol::CustomStateDataKey,
+            QVariantMap{{QStringLiteral("isLocked"), record._lockstate._locked},
+                {QStringLiteral("isShared"), record._isShared}}}};
+    };
 
-    if (QDateTime::currentMSecsSinceEpoch() - record._lastShareStateFetchedTimestmap < sharesFetchInterval) {
-        const auto messageReplyWithCustomStates = QVariantMap{{VfsShellExtensions::Protocol::CustomStateDataKey,
-            QVariantMap{
-                { QLatin1Literal("isLocked"), record._lockstate._locked },
-                { QLatin1Literal("isShared"), record._isShared} }
-            }
-        };
-        qInfo() << record.path() << " record._lastShareStateFetchedTimestmap has less than " << sharesFetchInterval << " ms difference with QDateTime::currentMSecsSinceEpoch(). Returning data from SyncJournal.";
-        sendJsonMessageWithVersion(socket, messageReplyWithCustomStates);
+    if (QDateTime::currentMSecsSinceEpoch() - record._lastShareStateFetchedTimestmap < customStatesSharesFetchInterval) {
+        qInfo() << record.path() << " record._lastShareStateFetchedTimestmap has less than " << customStatesSharesFetchInterval << " ms difference with QDateTime::currentMSecsSinceEpoch(). Returning data from SyncJournal.";
+        sendJsonMessageWithVersion(socket, composeMessageReplyFromRecord(record));
         closeSession(socket);
         return;
     }
 
-    auto recordPathSplit = record.path().split(QLatin1Char('/'), Qt::SkipEmptyParts);
-    QString path = QStringLiteral("/");
-
-    if (recordPathSplit.size() > 1) {
-        recordPathSplit.removeLast();
-        path = recordPathSplit.join(QLatin1Char('/'));
-    }
-
-    auto *job = new OcsShareJob(folder->accountState()->account());
-    job->setProperty("folderAlias", customStateRequestInfo.folderAlias);
+    auto *const job = new OcsShareJob(folder->accountState()->account());
+    job->setProperty(folderAliasPropertyKey, customStateRequestInfo.folderAlias);
     connect(job, &OcsShareJob::shareJobFinished, this, &ShellExtensionsServer::slotSharesFetched);
     connect(job, &OcsJob::ocsError, this, &ShellExtensionsServer::slotSharesFetchError);
 
-    _customStateSocketConnection.insert(socket->socketDescriptor(),
-        QObject::connect(this, &ShellExtensionsServer::fetchSharesJobFinished,
-            [this, socket, customStateRequestInfo, filePathRelative](const QString &path) {
-                const auto connection = _customStateSocketConnection[socket->socketDescriptor()];
+    {
+        QMutexLocker locker(&_customStateSocketConnectionsMutex);
+        _customStateSocketConnections.insert(socket->socketDescriptor(), QObject::connect(this, &ShellExtensionsServer::fetchSharesJobFinished, [this, socket, filePathRelative, composeMessageReplyFromRecord](const QString &folderAlias) {
+            {
+                QMutexLocker locker(&_customStateSocketConnectionsMutex);
+                const auto connection = _customStateSocketConnections[socket->socketDescriptor()];
                 if (connection) {
                     QObject::disconnect(connection);
                 }
-                _customStateSocketConnection.remove(socket->socketDescriptor());
+                _customStateSocketConnections.remove(socket->socketDescriptor());
+            }
+            
+            const auto folder = FolderMan::instance()->folder(folderAlias);
+            SyncJournalFileRecord record;
+            if (!folder || !folder->journalDb()->getFileRecord(filePathRelative, &record) || !record.isValid()) {
+                qWarning() << "Record not found in SyncJournal for: " << filePathRelative;
+                sendEmptyDataAndCloseSession(socket);
+                return;
+            }
+            
+            qInfo() << "Sending reply from OcsShareJob for socket: " << socket->socketDescriptor() << " and record: " << record.path();
+            sendJsonMessageWithVersion(socket, composeMessageReplyFromRecord(record));
+            closeSession(socket);
+        }));
+    }
 
-                const auto folder = FolderMan::instance()->folder(customStateRequestInfo.folderAlias);
-                SyncJournalFileRecord record;
-                if (!folder || !folder->journalDb()->getFileRecord(filePathRelative, &record) || !record.isValid()) {
-                    sendEmptyDataAndCloseSession(socket);
-                    return;
-                }
-                const auto messageReplyWithCustomStates = QVariantMap{{VfsShellExtensions::Protocol::CustomStateDataKey,
-                    QVariantMap {
-                        { QLatin1Literal("isLocked"), record._lockstate._locked },
-                        { QLatin1Literal("isShared"), record._isShared} }
-                    }
-                };
-                qInfo() << "Sending reply from OcsShareJob for socket: " << socket->socketDescriptor() << " and record: " << record.path();
-                sendJsonMessageWithVersion(socket, messageReplyWithCustomStates);
-                closeSession(socket);
-            }));
+    const auto sharesPath = [&record]() {
+        // either get parent's path, or, return '/' if we are in the root folder
+        auto recordPathSplit = record.path().split(QLatin1Char('/'), Qt::SkipEmptyParts);
+        if (recordPathSplit.size() > 1) {
+            recordPathSplit.removeLast();
+            return recordPathSplit.join(QLatin1Char('/'));
+        }
+        return QStringLiteral("/");
+    }();
 
     QMutexLocker locker(&_runningFetchShareJobsMutex);
-    if (!_runningFetchShareJobsForPaths.contains(path)) {
-        _runningFetchShareJobsForPaths.push_back(path);
-        qInfo() << "Started OcsShareJob for path: " << path;
-        job->getShares(path, {{QStringLiteral("subfiles"), QStringLiteral("true")}});
+    if (!_runningFetchShareJobsForPaths.contains(sharesPath)) {
+        _runningFetchShareJobsForPaths.push_back(sharesPath);
+        qInfo() << "Started OcsShareJob for path: " << sharesPath;
+        job->getShares(sharesPath, {{QStringLiteral("subfiles"), QStringLiteral("true")}});
     } else {
-        qInfo() << "OcsShareJob is already running for path: " << path;
+        qInfo() << "OcsShareJob is already running for path: " << sharesPath;
     }
 }
 
@@ -246,7 +252,7 @@ void ShellExtensionsServer::slotSharesFetched(const QJsonDocument &reply)
     QMutexLocker locker(&_runningFetchShareJobsMutex);
     _runningFetchShareJobsForPaths.removeAll(sharesPath);
 
-    const auto folderAlias = job->property("folderAlias").toString();
+    const auto folderAlias = job->property(folderAliasPropertyKey).toString();
 
     Q_ASSERT(!folderAlias.isEmpty());
     if (folderAlias.isEmpty()) {
@@ -278,12 +284,12 @@ void ShellExtensionsServer::slotSharesFetched(const QJsonDocument &reply)
         folder->journalDb()->setFileRecord(record);
     }
 
-    const auto sharesFetched = reply.object().value("ocs").toObject().value("data").toArray();
+    const auto sharesFetched = reply.object().value(QStringLiteral("ocs")).toObject().value(QStringLiteral("data")).toArray();
 
     for (const auto &share : sharesFetched) {
         const auto shareData = share.toObject();
         const auto sharePath = [&shareData]() { 
-            auto pathTemp = shareData.value("path").toString();
+            auto pathTemp = shareData.value(QStringLiteral("path")).toString();
             if (pathTemp.size() > 1 && pathTemp.startsWith(QLatin1Char('/'))) {
                 pathTemp.remove(0, 1);
             }
@@ -300,7 +306,7 @@ void ShellExtensionsServer::slotSharesFetched(const QJsonDocument &reply)
     }
 
     qInfo() << "Succeeded OcsShareJob for path: " << sharesPath;
-    emit fetchSharesJobFinished(sharesPath);
+    emit fetchSharesJobFinished(folderAlias);
 }
 
 void ShellExtensionsServer::slotSharesFetchError(int statusCode, const QString &message)

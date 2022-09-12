@@ -49,7 +49,7 @@ public:
     ~ShellExtensionsServer() override;
 
 signals:
-    void fetchSharesJobFinished(const QString &path);
+    void fetchSharesJobFinished(const QString &folderAlias);
 
 private:
     void sendJsonMessageWithVersion(QLocalSocket *socket, const QVariantMap &message);
@@ -70,6 +70,7 @@ private:
     QLocalServer _localServer;
     QMutex _runningFetchShareJobsMutex;
     QStringList _runningFetchShareJobsForPaths;
-    QMap<qintptr, QMetaObject::Connection> _customStateSocketConnection;
+    QMutex _customStateSocketConnectionsMutex;
+    QMap<qintptr, QMetaObject::Connection> _customStateSocketConnections;
 };
 } // namespace OCC
