@@ -16,6 +16,7 @@
 #include "account.h"
 #include "accountstate.h"
 #include "common/shellextensionutils.h"
+#include "libsync/vfs/cfapi/shellext/configvfscfapishellext.h"
 #include "folder.h"
 #include "folderman.h"
 #include "ocssharejob.h"
@@ -34,6 +35,7 @@ namespace OCC {
 ShellExtensionsServer::ShellExtensionsServer(QObject *parent)
     : QObject(parent)
 {
+    _shareStateInvalidationInterval = customStatesSharesFetchInterval;
     _localServer.listen(VfsShellExtensions::serverNameForApplicationNameDefault());
     connect(&_localServer, &QLocalServer::newConnection, this, &ShellExtensionsServer::slotNewConnection);
 }
@@ -54,6 +56,11 @@ ShellExtensionsServer::~ShellExtensionsServer()
         return;
     }
     _localServer.close();
+}
+
+void ShellExtensionsServer::setShareStateInvalidationInterval(qint64 interval)
+{
+    _shareStateInvalidationInterval = interval;
 }
 
 void ShellExtensionsServer::sendJsonMessageWithVersion(QLocalSocket *socket, const QVariantMap &message)
@@ -101,19 +108,25 @@ void ShellExtensionsServer::processCustomStateRequest(QLocalSocket *socket, cons
     }
 
     const auto composeMessageReplyFromRecord = [](const SyncJournalFileRecord &record) {
+        QVariantList states;
+        if (record._lockstate._locked) {
+            states.push_back(QString(CUSTOM_STATE_ICON_LOCKED_INDEX).toInt() - QString(CUSTOM_STATE_ICON_INDEX_OFFSET).toInt());
+        }
+        if (record._isShared) {
+            states.push_back(QString(CUSTOM_STATE_ICON_SHARED_INDEX).toInt() - QString(CUSTOM_STATE_ICON_INDEX_OFFSET).toInt());
+        }
         return QVariantMap{{VfsShellExtensions::Protocol::CustomStateDataKey,
-            QVariantMap{{QStringLiteral("isLocked"), record._lockstate._locked},
-                {QStringLiteral("isShared"), record._isShared}}}};
+            QVariantMap{{VfsShellExtensions::Protocol::CustomStateStatesKey, states}}}};
     };
 
-    if (QDateTime::currentMSecsSinceEpoch() - record._lastShareStateFetchedTimestmap < customStatesSharesFetchInterval) {
-        qInfo() << record.path() << " record._lastShareStateFetchedTimestmap has less than " << customStatesSharesFetchInterval << " ms difference with QDateTime::currentMSecsSinceEpoch(). Returning data from SyncJournal.";
+    if (QDateTime::currentMSecsSinceEpoch() - record._lastShareStateFetchedTimestmap < _shareStateInvalidationInterval) {
+        qInfo() << record.path() << " record._lastShareStateFetchedTimestmap has less than " << _shareStateInvalidationInterval << " ms difference with QDateTime::currentMSecsSinceEpoch(). Returning data from SyncJournal.";
         sendJsonMessageWithVersion(socket, composeMessageReplyFromRecord(record));
         closeSession(socket);
         return;
     }
 
-    auto *const job = new OcsShareJob(folder->accountState()->account());
+    const auto job = new OcsShareJob(folder->accountState()->account());
     job->setProperty(folderAliasPropertyKey, customStateRequestInfo.folderAlias);
     connect(job, &OcsShareJob::shareJobFinished, this, &ShellExtensionsServer::slotSharesFetched);
     connect(job, &OcsJob::ocsError, this, &ShellExtensionsServer::slotSharesFetchError);
@@ -283,6 +296,8 @@ void ShellExtensionsServer::slotSharesFetched(const QJsonDocument &reply)
         record._lastShareStateFetchedTimestmap = timeStamp;
         folder->journalDb()->setFileRecord(record);
     }
+
+    auto objectToString = QJsonDocument(reply.object()).toJson();
 
     const auto sharesFetched = reply.object().value(QStringLiteral("ocs")).toObject().value(QStringLiteral("data")).toArray();
 

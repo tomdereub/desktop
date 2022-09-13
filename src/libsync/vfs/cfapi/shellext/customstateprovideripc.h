@@ -27,7 +27,7 @@ public:
     CustomStateProviderIpc();
     ~CustomStateProviderIpc();
 
-    QVariantMap fetchCustomStatesForFile(const QString &filePath);
+    QVariantList fetchCustomStatesForFile(const QString &filePath);
 
 private:
     bool connectSocketToServer(const QString &serverName);

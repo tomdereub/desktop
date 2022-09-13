@@ -1,36 +1,46 @@
 include(GenerateIconsUtils)
 include(FileUtils)
 
-if (NOT DEFINED RESOURCES_FILE_NAME)
-    set(RESOURCES_FILE_NAME ${CFAPI_SHELL_EXTENSIONS_LIB_NAME})
-endif()
-
+# generate custom states icons
 set(theme_dir ${CMAKE_SOURCE_DIR}/theme)
 set(custom_state_icons_path "${theme_dir}/cfapishellext_custom_states")
-set(CUSTOM_STATE_ICON_SHARED "${custom_state_icons_path}/shared.svg")
-set(CUSTOM_STATE_ICON_LOCKED "${custom_state_icons_path}/locked.svg")
+set(CUSTOM_STATE_ICON_LOCKED_PATH "${custom_state_icons_path}/0-locked.svg")
+set(CUSTOM_STATE_ICON_SHARED_PATH "${custom_state_icons_path}/1-shared.svg")
 
 foreach(size IN ITEMS 24;32;40;48;64;128;256;512;1024)
-  get_filename_component(output_icon_name_custom_state_locked ${CUSTOM_STATE_ICON_LOCKED} NAME_WLE)
-  generate_sized_png_from_svg(${CUSTOM_STATE_ICON_LOCKED} ${size} OUTPUT_ICON_NAME ${output_icon_name_custom_state_locked} OUTPUT_ICON_PATH "${custom_state_icons_path}/")
+  get_filename_component(output_icon_name_custom_state_locked ${CUSTOM_STATE_ICON_LOCKED_PATH} NAME_WLE)
+  generate_sized_png_from_svg(${CUSTOM_STATE_ICON_LOCKED_PATH} ${size} OUTPUT_ICON_NAME ${output_icon_name_custom_state_locked} OUTPUT_ICON_PATH "${custom_state_icons_path}/")
 endforeach()
 
 foreach(size IN ITEMS 24;32;40;48;64;128;256;512;1024)
-  get_filename_component(output_icon_name_custom_state_shared ${CUSTOM_STATE_ICON_SHARED} NAME_WLE)
-  generate_sized_png_from_svg(${CUSTOM_STATE_ICON_SHARED} ${size} OUTPUT_ICON_NAME ${output_icon_name_custom_state_shared} OUTPUT_ICON_PATH "${custom_state_icons_path}/")
+  get_filename_component(output_icon_name_custom_state_shared ${CUSTOM_STATE_ICON_SHARED_PATH} NAME_WLE)
+  generate_sized_png_from_svg(${CUSTOM_STATE_ICON_SHARED_PATH} ${size} OUTPUT_ICON_NAME ${output_icon_name_custom_state_shared} OUTPUT_ICON_PATH "${custom_state_icons_path}/")
 endforeach()
+
+# offset is used for referencing icon within the binary's resources (indexing start with 0, while IDI_ICON{i} 'i' starts with 1)
+if(NOT DEFINED CUSTOM_STATE_ICON_INDEX_OFFSET)
+    set(CUSTOM_STATE_ICON_INDEX_OFFSET 1)
+endif()
+
+# indeces used for referencing icon within the binary's resources and .rc file's IDI_ICON{i} entries 'i'
+if(NOT DEFINED CUSTOM_STATE_ICON_LOCKED_INDEX)
+    set(CUSTOM_STATE_ICON_LOCKED_INDEX 1)
+endif()
+if(NOT DEFINED CUSTOM_STATE_ICON_SHARED_INDEX)
+    set(CUSTOM_STATE_ICON_SHARED_INDEX 2)
+endif()
 
 set(RC_DEPENDENCIES "")
 
 file(GLOB_RECURSE CUSTOM_STATE_ICONS_LOCKED "${custom_state_icons_path}/*-locked*")
-set(CUSTOM_STATE_ICON_LOCKED_NAME "locked")
+get_filename_component(CUSTOM_STATE_ICON_LOCKED_NAME ${CUSTOM_STATE_ICON_LOCKED_PATH} NAME_WLE)
 set(RC_DEPENDENCIES "${RC_DEPENDENCIES} ${CUSTOM_STATE_ICON_LOCKED_NAME}.ico")
-ecm_add_app_icon(CUSTOM_STATE_ICON_LOCKED_OUT ICONS "${CUSTOM_STATE_ICONS_LOCKED}" SIDEBAR_ICONS "" OUTFILE_BASENAME "${CUSTOM_STATE_ICON_LOCKED_NAME}" ICON_INDEX 1)
+ecm_add_app_icon(CUSTOM_STATE_ICON_LOCKED_OUT ICONS "${CUSTOM_STATE_ICONS_LOCKED}" SIDEBAR_ICONS "" OUTFILE_BASENAME "${CUSTOM_STATE_ICON_LOCKED_NAME}" ICON_INDEX ${CUSTOM_STATE_ICON_LOCKED_INDEX})
 
 file(GLOB_RECURSE CUSTOM_STATE_ICONS_SHARED "${custom_state_icons_path}/*-shared*")
-set(CUSTOM_STATE_ICON_SHARED_NAME "shared")
+get_filename_component(CUSTOM_STATE_ICON_SHARED_NAME ${CUSTOM_STATE_ICON_SHARED_PATH} NAME_WLE)
 set(RC_DEPENDENCIES "${RC_DEPENDENCIES} ${CUSTOM_STATE_ICON_SHARED_NAME}.ico")
-ecm_add_app_icon(CUSTOM_STATE_ICON_SHARED_OUT ICONS "${CUSTOM_STATE_ICONS_SHARED}" SIDEBAR_ICONS "" OUTFILE_BASENAME "${CUSTOM_STATE_ICON_SHARED_NAME}" ICON_INDEX 2)
+ecm_add_app_icon(CUSTOM_STATE_ICON_SHARED_OUT ICONS "${CUSTOM_STATE_ICONS_SHARED}" SIDEBAR_ICONS "" OUTFILE_BASENAME "${CUSTOM_STATE_ICON_SHARED_NAME}" ICON_INDEX ${CUSTOM_STATE_ICON_SHARED_INDEX})
 
 get_filename_component(RC_IN_FOLDER ${CUSTOM_STATE_ICON_SHARED_OUT}} DIRECTORY)
 
@@ -47,11 +57,10 @@ add_custom_command(
   OUTPUT "${RC_IN_FOLDER}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc"
   COMMAND ${CMAKE_COMMAND}
   ARGS -E copy "${RC_IN_FOLDER}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc.in" "${RC_IN_FOLDER}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc"
-  DEPENDS "locked.ico" "shared.ico"
+  DEPENDS "0-locked.ico" "1-shared.ico"
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
-
-message("CUSTOM_STATE_ICON_SHARED: ${CUSTOM_STATE_ICON_SHARED}")
+#
 
 # Windows SDK command-line tools require native paths
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" MidleFileFolder)
@@ -162,6 +171,7 @@ add_library(CfApiShellExtensions MODULE
     dllmain.cpp
     cfapishellintegrationclassfactory.cpp
     customstateprovideripc.cpp
+    ipccommon.cpp
     thumbnailprovider.cpp
 	thumbnailprovideripc.cpp
     ${CMAKE_SOURCE_DIR}/src/common/shellextensionutils.cpp
@@ -197,3 +207,5 @@ install(TARGETS CfApiShellExtensions
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/configvfscfapishellext.h.in ${CMAKE_CURRENT_BINARY_DIR}/configvfscfapishellext.h)

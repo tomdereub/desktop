@@ -12,10 +12,10 @@
  * for more details.
  */
 
-namespace CfApiShellExtensions
-{
-    runtimeclass CustomStateProvider : [default] Windows.Storage.Provider.IStorageProviderItemPropertySource
-    {
-        CustomStateProvider();
-    }
+#pragma once
+
+#include <QString>
+
+namespace VfsShellExtensions {
+QString findServerNameForPath(const QString &filePath);
 }

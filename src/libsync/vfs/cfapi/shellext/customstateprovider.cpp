@@ -55,27 +55,16 @@ CustomStateProvider::GetItemProperties(hstring const &itemPath)
 
     const auto states = customStateProviderIpc.fetchCustomStatesForFile(itemPathString);
 
-    const auto isShared = states.value(QStringLiteral("isShared")).toBool();
-    const auto isLocked = states.value(QStringLiteral("isLocked")).toBool();
+    for (const auto &state : states) {
+        const auto stateValue = state.canConvert<int>() ? state.toInt() : -1;
 
-    if (!isShared && !isLocked) {
-        return winrt::single_threaded_vector(std::move(properties));
-    }
-
-    if (isLocked) {
-        winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
-        itemProperty.Id(1);
-        itemProperty.Value(L"Value1");
-        itemProperty.IconResource(_dllFilePath.toStdWString() + L",0");
-        properties.push_back(std::move(itemProperty));
-    }
-
-    if (isShared) {
-        winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
-        itemProperty.Id(2);
-        itemProperty.Value(L"Value2");
-        itemProperty.IconResource(_dllFilePath.toStdWString() + L",1");
-        properties.push_back(std::move(itemProperty));
+        if (stateValue >= 0) {
+            winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
+            itemProperty.Id(stateValue);
+            itemProperty.Value(QString("Value%1").arg(stateValue).toStdWString());
+            itemProperty.IconResource(QString(_dllFilePath + QString(",%1").arg(QString::number(stateValue))).toStdWString());
+            properties.push_back(std::move(itemProperty));
+        }
     }
 
     return winrt::single_threaded_vector(std::move(properties));

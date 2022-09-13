@@ -48,6 +48,8 @@ public:
     ShellExtensionsServer(QObject *parent = nullptr);
     ~ShellExtensionsServer() override;
 
+    void setShareStateInvalidationInterval(qint64 interval);
+
 signals:
     void fetchSharesJobFinished(const QString &folderAlias);
 
@@ -72,5 +74,6 @@ private:
     QStringList _runningFetchShareJobsForPaths;
     QMutex _customStateSocketConnectionsMutex;
     QMap<qintptr, QMetaObject::Connection> _customStateSocketConnections;
+    qint64 _shareStateInvalidationInterval = 0;
 };
 } // namespace OCC

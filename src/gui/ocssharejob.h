@@ -131,6 +131,8 @@ public:
      */
     void getSharedWithMe();
 
+    static QString pathForGetSharesRequest();
+
 signals:
     /**
      * Result of the OCS request

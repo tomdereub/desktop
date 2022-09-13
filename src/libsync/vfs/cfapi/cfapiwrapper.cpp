@@ -428,7 +428,6 @@ bool createSyncRootRegistryKeys(const QString &providerName, const QString &fold
 
     const QString providerSyncRootIdRegistryKey = syncRootManagerRegKey + QStringLiteral("\\") + syncRootId;
     const QString providerSyncRootIdUserSyncRootsRegistryKey = providerSyncRootIdRegistryKey + QStringLiteral(R"(\UserSyncRoots\)");
-    const QString providerSyncRootIdCustomStatesRegistryKey = providerSyncRootIdRegistryKey + QStringLiteral(R"(\CustomStates\)");
 
     struct RegistryKeyInfo {
         QString subKey;
@@ -446,10 +445,7 @@ bool createSyncRootRegistryKeys(const QString &providerName, const QString &fold
         { providerSyncRootIdUserSyncRootsRegistryKey, windowsSid, REG_SZ, syncRootPath},   
         { providerSyncRootIdRegistryKey, QStringLiteral("CustomStateHandler"), REG_SZ, CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID_REG},
         { providerSyncRootIdRegistryKey, QStringLiteral("ThumbnailProvider"), REG_SZ, CFAPI_SHELLEXT_THUMBNAIL_HANDLER_CLASS_ID_REG},
-        { providerSyncRootIdRegistryKey, QStringLiteral("NamespaceCLSID"), REG_SZ, QString(navigationPaneClsid)},
-        { providerSyncRootIdCustomStatesRegistryKey + "\\1", QStringLiteral("DisplayName"), REG_SZ, QStringLiteral("CustomStateName1")},
-        { providerSyncRootIdCustomStatesRegistryKey + "\\2", QStringLiteral("DisplayName"), REG_SZ, QStringLiteral("CustomStateName2")},
-        { providerSyncRootIdCustomStatesRegistryKey + "\\3", QStringLiteral("DisplayName"), REG_SZ, QStringLiteral("CustomStateName3")},
+        { providerSyncRootIdRegistryKey, QStringLiteral("NamespaceCLSID"), REG_SZ, QString(navigationPaneClsid)}
     };
 
     for (const auto &registryKeyToSet : qAsConst(registryKeysToSet)) {
