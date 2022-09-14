@@ -48,6 +48,8 @@ public:
     ShellExtensionsServer(QObject *parent = nullptr);
     ~ShellExtensionsServer() override;
 
+    static QString getFetchThumbnailPath();
+
     void setShareStateInvalidationInterval(qint64 interval);
 
 signals:

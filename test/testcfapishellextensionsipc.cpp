@@ -5,26 +5,30 @@
  *
  */
 
+#include <account.h>
+#include <accountstate.h>
+#include <accountmanager.h>
+#include <common/vfs.h>
+#include <common/shellextensionutils.h>
+#include "config.h"
+#include <folderman.h>
+#include <libsync/vfs/cfapi/shellext/configvfscfapishellext.h>
+#include <ocssharejob.h>
+#include <shellextensionsserver.h>
+#include <syncengine.h>
+#include "syncenginetestutils.h"
+#include "testhelper.h"
+#include <vfs/cfapi/shellext/customstateprovideripc.h>
+#include <vfs/cfapi/shellext/thumbnailprovideripc.h>
 #include <QtTest>
 #include <QImage>
 #include <QPainter>
-#include "syncenginetestutils.h"
-#include "common/vfs.h"
-#include "common/shellextensionutils.h"
-#include "config.h"
-#include <syncengine.h>
-
-#include "folderman.h"
-#include "account.h"
-#include "accountstate.h"
-#include "accountmanager.h"
-#include "ocssharejob.h"
-#include "testhelper.h"
-#include "vfs/cfapi/shellext/thumbnailprovideripc.h"
-#include "vfs/cfapi/shellext/customstateprovideripc.h"
-#include "shellextensionsserver.h"
 
 namespace {
+static constexpr auto roootFolderName = "A";
+static constexpr auto imagesFolderName = "photos";
+static constexpr auto filesFolderName = "files";
+
 static const QByteArray fakeNoSharesResponse = R"({"ocs":{"data":[],"meta":{"message":"OK","status":"ok","statuscode":200}}})";
 
 static const QByteArray fakeSharedFilesResponse = R"({"ocs":{"data":[{
@@ -114,7 +118,7 @@ static const QByteArray fakeSharedFilesResponse = R"({"ocs":{"data":[{
     }
 })";
 
-static constexpr auto shellExtensionServerOverrideIntervalMs = 1000 * 5;
+static constexpr qint64 shellExtensionServerOverrideIntervalMs = 1000 * 5;
 }
 
 using namespace OCC;
@@ -133,11 +137,7 @@ class TestCfApiShellExtensionsIPC : public QObject
 
     QScopedPointer<ShellExtensionsServer> _shellExtensionsServer;
 
-    static constexpr auto roootFolderName = "A";
-    static constexpr auto imagesFolderName = "photos";
-    static constexpr auto filesFolderName = "files";
-
-    QStringList dummmyImageNames = {
+    const QStringList dummmyImageNames = {
         { QString(QString(roootFolderName) + QLatin1Char('/') + QString(imagesFolderName) + QLatin1Char('/') + QStringLiteral("imageJpg.jpg")) },
         { QString(QString(roootFolderName) + QLatin1Char('/') + QString(imagesFolderName) + QLatin1Char('/') + QStringLiteral("imagePng.png")) },
         { QString(QString(roootFolderName) + QLatin1Char('/') + QString(imagesFolderName) + QLatin1Char('/') + QStringLiteral("imagePng.bmp")) }
@@ -152,11 +152,11 @@ class TestCfApiShellExtensionsIPC : public QObject
         bool _isLocked = false;
     };
 
-    QMap<QString, FileStates> dummyFileStates = {
-        { QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_locked_file.txt"), { false, true } },
-        { QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_shared_file.txt"), { true, false } },
-        { QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_shared_and_locked_file.txt"), { true, true }},
-        { QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_non_shared_and_non_locked_file.txt"), { false, false }}
+    const QMap<QString, FileStates> dummyFileStates = {
+        { QString(QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_locked_file.txt")), { false, true } },
+        { QString(QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_shared_file.txt")), { true, false } },
+        { QString(QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_shared_and_locked_file.txt")), { true, true }},
+        { QString(QString(roootFolderName) + QLatin1Char('/') + QString(filesFolderName) + QLatin1Char('/') + QStringLiteral("test_non_shared_and_non_locked_file.txt")), { false, false }}
     };
 
 public:
@@ -223,32 +223,33 @@ private slots:
                         {QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json"}};
                     fakePayloadReply->_additionalHeaders = additionalHeaders;
                     reply = fakePayloadReply;
-                    return reply;
-                }
+                } else if (path.endsWith(ShellExtensionsServer::getFetchThumbnailPath())) {
+                    const auto urlQuery = QUrlQuery(req.url());
+                    const auto fileId = urlQuery.queryItemValue(QStringLiteral("fileId"));
+                    const auto x = urlQuery.queryItemValue(QStringLiteral("x")).toInt();
+                    const auto y = urlQuery.queryItemValue(QStringLiteral("y")).toInt();
+                    if (fileId.isEmpty() || x <= 0 || y <= 0) {
+                        reply = new FakePayloadReply(op, req, {}, nullptr);
+                    } else {
+                        const auto foundImageIt = dummyImages.find(currentImage);
 
-                const auto urlQuery = QUrlQuery(req.url());
-                const auto fileId = urlQuery.queryItemValue(QStringLiteral("fileId"));
-                const auto x = urlQuery.queryItemValue(QStringLiteral("x")).toInt();
-                const auto y = urlQuery.queryItemValue(QStringLiteral("y")).toInt();
-                if (fileId.isEmpty() || x <= 0 || y <= 0) {
-                    reply = new FakePayloadReply(op, req, {}, nullptr);
-                } else {
-                    const auto foundImageIt = dummyImages.find(currentImage);
+                        QByteArray byteArray;
+                        if (foundImageIt != dummyImages.end()) {
+                            byteArray = foundImageIt.value();
+                        }
 
-                    QByteArray byteArray;
-                    if (foundImageIt != dummyImages.end()) {
-                        byteArray = foundImageIt.value();
+                        currentImage.clear();
+
+                        auto fakePayloadReply = new FakePayloadReply(op, req, byteArray, nullptr);
+
+                        QMap<QNetworkRequest::KnownHeaders, QByteArray> additionalHeaders = {
+                            {QNetworkRequest::KnownHeaders::ContentTypeHeader, "image/jpeg"}};
+                        fakePayloadReply->_additionalHeaders = additionalHeaders;
+
+                        reply = fakePayloadReply;
                     }
-
-                    currentImage.clear();
-
-                    auto fakePayloadReply = new FakePayloadReply(op, req, byteArray, nullptr);
-
-                    QMap<QNetworkRequest::KnownHeaders, QByteArray> additionalHeaders = {
-                        {QNetworkRequest::KnownHeaders::ContentTypeHeader, "image/jpeg"}};
-                    fakePayloadReply->_additionalHeaders = additionalHeaders;
-
-                    reply = fakePayloadReply;
+                } else {
+                    reply = new FakePayloadReply(op, req, {}, nullptr);
                 }
                 
                 return reply;
@@ -422,6 +423,21 @@ private slots:
             loop.exec();
             t.detach();
             QVERIFY(!customStates.isEmpty() || (!it.value()._isLocked && !it.value()._isShared));
+
+            if (!customStates.isEmpty()) {
+                const auto lockedIndex = QString(CUSTOM_STATE_ICON_LOCKED_INDEX).toInt() - QString(CUSTOM_STATE_ICON_INDEX_OFFSET).toInt();
+                const auto sharedIndex = QString(CUSTOM_STATE_ICON_SHARED_INDEX).toInt() - QString(CUSTOM_STATE_ICON_INDEX_OFFSET).toInt();
+
+                if (customStates.contains(lockedIndex) && customStates.contains(sharedIndex)) {
+                    QVERIFY(it.value()._isLocked && it.value()._isShared);
+                }
+                if (customStates.contains(lockedIndex)) {
+                    QVERIFY(it.value()._isLocked);
+                }
+                if (customStates.contains(sharedIndex)) {
+                    QVERIFY(it.value()._isShared);
+                }
+            }
         }
 
         // #5 Test no shares response for a file

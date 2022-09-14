@@ -58,6 +58,11 @@ ShellExtensionsServer::~ShellExtensionsServer()
     _localServer.close();
 }
 
+QString ShellExtensionsServer::getFetchThumbnailPath()
+{
+    return QStringLiteral("/index.php/core/preview");
+}
+
 void ShellExtensionsServer::setShareStateInvalidationInterval(qint64 interval)
 {
     _shareStateInvalidationInterval = interval;
@@ -204,7 +209,7 @@ void ShellExtensionsServer::processThumbnailRequest(QLocalSocket *socket, const 
     queryItems.addQueryItem(QStringLiteral("fileId"), record._fileId);
     queryItems.addQueryItem(QStringLiteral("x"), QString::number(thumbnailRequestInfo.size.width()));
     queryItems.addQueryItem(QStringLiteral("y"), QString::number(thumbnailRequestInfo.size.height()));
-    const QUrl jobUrl = Utility::concatUrlPath(folder->accountState()->account()->url(), QStringLiteral("/index.php/core/preview"), queryItems);
+    const QUrl jobUrl = Utility::concatUrlPath(folder->accountState()->account()->url(), getFetchThumbnailPath(), queryItems);
     const auto job = new SimpleNetworkJob(folder->accountState()->account());
     job->startRequest(QByteArrayLiteral("GET"), jobUrl);
     connect(job, &SimpleNetworkJob::finishedSignal, this, [socket, this](QNetworkReply *reply) {
