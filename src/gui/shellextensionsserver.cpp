@@ -102,7 +102,6 @@ void ShellExtensionsServer::processCustomStateRequest(QLocalSocket *socket, cons
         sendEmptyDataAndCloseSession(socket);
         return;
     }
-
     const auto filePathRelative = QString(customStateRequestInfo.path).remove(folder->path());
 
     SyncJournalFileRecord record;
@@ -162,9 +161,10 @@ void ShellExtensionsServer::processCustomStateRequest(QLocalSocket *socket, cons
         }));
     }
 
-    const auto sharesPath = [&record]() {
+    const auto sharesPath = [&record, folder, &filePathRelative]() {
+        const auto filePathRelativeRemote = QDir(folder->remotePath()).filePath(filePathRelative);
         // either get parent's path, or, return '/' if we are in the root folder
-        auto recordPathSplit = record.path().split(QLatin1Char('/'), Qt::SkipEmptyParts);
+        auto recordPathSplit = filePathRelativeRemote.split(QLatin1Char('/'), Qt::SkipEmptyParts);
         if (recordPathSplit.size() > 1) {
             recordPathSplit.removeLast();
             return recordPathSplit.join(QLatin1Char('/'));
@@ -308,12 +308,18 @@ void ShellExtensionsServer::slotSharesFetched(const QJsonDocument &reply)
 
     for (const auto &share : sharesFetched) {
         const auto shareData = share.toObject();
-        const auto sharePath = [&shareData]() { 
-            auto pathTemp = shareData.value(QStringLiteral("path")).toString();
-            if (pathTemp.size() > 1 && pathTemp.startsWith(QLatin1Char('/'))) {
-                pathTemp.remove(0, 1);
+        const auto sharePath = [&shareData, folder]() { 
+            const auto sharePathRemote = shareData.value(QStringLiteral("path")).toString();
+
+            const auto folderPath = folder->remotePath();
+            if (folderPath != QLatin1Char('/') && sharePathRemote.startsWith(folderPath)) {
+                // shares are ruturned with absolute remote path, so, if we have our remote root set to subfolder, we need to adjust share's remote path to relative local path
+                const auto sharePathLocalRelative = sharePathRemote.midRef(folder->remotePathTrailingSlash().length());
+                return sharePathLocalRelative.toString();
             }
-            return pathTemp; 
+            return sharePathRemote.size() > 1 && sharePathRemote.startsWith(QLatin1Char('/'))
+                ? QString(sharePathRemote).remove(0, 1)
+                : sharePathRemote;
         }();
 
         SyncJournalFileRecord record;
