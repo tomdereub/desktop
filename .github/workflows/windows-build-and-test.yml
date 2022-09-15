@@ -39,6 +39,12 @@ jobs:
         with:
           path: C:\Program Files\OpenCppCoverage
           key: ${{ runner.os }}-cache-install-opencppcoverage
+
+      - name: Install Png2Ico
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://cloud.nextcloud.com/s/ZcXnaFLwdzFYJfq/download/png2ico.zip" -OutFile "C:\Program Files\png2ico.zip"
+          Expand-Archive "C:\Program Files\png2ico.zip" -DestinationPath "C:\Program Files\png2ico" -Force
           
       - name: Install OpenCppCoverage
         if: steps.cache-install-opencppcoverage.outputs.cache-hit != 'true'
@@ -49,6 +55,7 @@ jobs:
       - name: Setup PATH
         shell: pwsh
         run: |
+          echo "C:\Program Files\png2ico" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "C:\Program Files\OpenCppCoverage" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "${{ github.workspace }}\${{ env.CRAFT_TARGET }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
    
