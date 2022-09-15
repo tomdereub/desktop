@@ -171,14 +171,10 @@ add_library(CfApiShellExtensions MODULE
     CfApiShellIntegration.def
 )
 
-set(CUSTOM_STATE_ICON_LOCKED_OUT "")
-set(CUSTOM_STATE_ICON_SHARED_OUT "")
-
 if (CUSTOM_STATE_ICON_LOCKED_OUT AND CUSTOM_STATE_ICON_SHARED_OUT)
-    message("Adding ${CMAKE_CURRENT_BINARY_DIR}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc to CfApiShellExtensions")
     target_sources(CfApiShellExtensions PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc")
 else()
-    message("Could not add ${CMAKE_CURRENT_BINARY_DIR}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc to CfApiShellExtensions")
+    message(WARNING "Could not add ${CMAKE_CURRENT_BINARY_DIR}/${CFAPI_SHELL_EXTENSIONS_LIB_NAME}.rc to CfApiShellExtensions. Custom states for Windows Virtual Files won't work.")
 endif()
 
 

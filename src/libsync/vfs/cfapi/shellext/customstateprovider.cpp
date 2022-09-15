@@ -59,6 +59,20 @@ CustomStateProvider::GetItemProperties(hstring const &itemPath)
         const auto stateValue = state.canConvert<int>() ? state.toInt() : -1;
 
         if (stateValue >= 0) {
+            auto foundAvalability = _stateIconsAvailibility.constFind(stateValue);
+            if (foundAvalability == std::cend(_stateIconsAvailibility)) {
+                const auto hIcon = ExtractIcon(NULL, _dllFilePath.toStdWString().c_str(), stateValue);
+                _stateIconsAvailibility[stateValue] = hIcon != NULL;
+                if (hIcon) {
+                    DestroyIcon(hIcon); 
+                }
+                foundAvalability = _stateIconsAvailibility.constFind(stateValue);
+            }
+
+            if (!foundAvalability.value()) {
+                continue;
+            }
+
             winrt::Windows::Storage::Provider::StorageProviderItemProperty itemProperty;
             itemProperty.Id(stateValue);
             itemProperty.Value(QString("Value%1").arg(stateValue).toStdWString());
