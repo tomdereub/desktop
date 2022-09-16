@@ -26,7 +26,7 @@
 #include <QLocalSocket>
 
 namespace {
-constexpr auto customStatesSharesFetchInterval = 30 * 1000;
+constexpr auto customStatesSharesFetchInterval = 2 * 60 * 1000; // 2 minutes, so we don't make fetch sharees requests too often
 constexpr auto folderAliasPropertyKey = "folderAlias";
 }
 

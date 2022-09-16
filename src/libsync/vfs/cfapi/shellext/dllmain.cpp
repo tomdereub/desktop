@@ -18,6 +18,7 @@
 #include <comdef.h>
 
 long dllReferenceCount = 0;
+long dllObjectsCount = 0;
 
 HINSTANCE instanceHandle = NULL;
 
@@ -44,7 +45,7 @@ STDAPI_(BOOL) DllMain(HINSTANCE hInstance, DWORD dwReason, void *)
 
 STDAPI DllCanUnloadNow()
 {
-    return dllReferenceCount == 0 ? S_OK : S_FALSE;
+    return (dllReferenceCount == 0 && dllObjectsCount == 0) ? S_OK : S_FALSE;
 }
 
 STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void **ppv)
@@ -55,10 +56,10 @@ STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void **ppv)
 HRESULT CustomStateProvider_CreateInstance(REFIID riid, void **ppv)
 {
     try {
-        const auto customStateProvider = winrt::make_self<winrt::CfApiShellExtensions::implementation::CustomStateProvider>().detach();
-        const auto hresult = customStateProvider->QueryInterface(riid, ppv);
-        customStateProvider->Release();
-        return hresult;
+        auto provider = winrt::make<winrt::CfApiShellExtensions::implementation::CustomStateProvider>();
+        winrt::com_ptr<IUnknown> unkn{provider.as<IUnknown>()};
+        winrt::check_hresult(unkn->QueryInterface(riid, ppv));
+        return S_OK;
     } catch (_com_error exc) {
         return exc.Error();
     }

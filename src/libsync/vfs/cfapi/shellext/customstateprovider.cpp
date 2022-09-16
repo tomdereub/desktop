@@ -19,7 +19,19 @@
 #include <QVector>
 #include <QRandomGenerator>
 
+extern long dllObjectsCount;
+
 namespace winrt::CfApiShellExtensions::implementation {
+
+CustomStateProvider::CustomStateProvider()
+{
+    InterlockedIncrement(&dllObjectsCount);
+}
+
+CustomStateProvider::~CustomStateProvider()
+{
+    InterlockedDecrement(&dllObjectsCount);
+}
 
 winrt::Windows::Foundation::Collections::IIterable<winrt::Windows::Storage::Provider::StorageProviderItemProperty>
 CustomStateProvider::GetItemProperties(hstring const &itemPath)

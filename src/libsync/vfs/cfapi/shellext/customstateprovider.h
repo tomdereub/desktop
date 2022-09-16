@@ -26,7 +26,8 @@ struct __declspec(uuid(CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID)) CustomStat
     : CustomStateProviderT<CustomStateProvider>
 {
 public:
-    CustomStateProvider() = default;
+    CustomStateProvider();
+    virtual ~CustomStateProvider();
     Windows::Foundation::Collections::IIterable<Windows::Storage::Provider::StorageProviderItemProperty>
     GetItemProperties(_In_ hstring const &itemPath);
 
