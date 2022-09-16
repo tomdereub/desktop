@@ -118,7 +118,7 @@ static const QByteArray fakeSharedFilesResponse = R"({"ocs":{"data":[{
     }
 })";
 
-static constexpr qint64 shellExtensionServerOverrideIntervalMs = 1000 * 5;
+static constexpr qint64 shellExtensionServerOverrideIntervalMs = 1000 * 2;
 }
 
 using namespace OCC;
@@ -408,6 +408,19 @@ private slots:
         t2.detach();
         QVERIFY(customStates.isEmpty());
 
+        // reset all share states to make sure we'll get new states when fetching
+        for (auto it = std::begin(dummyFileStates); it != std::end(dummyFileStates); ++it) {
+            if (fakeFolder.syncJournal().getFileRecord(it.key(), &record)) {
+                record._remotePerm.unsetPermission(OCC::RemotePermissions::Permissions::IsShared);
+                record._isShared = false;
+                fakeFolder.syncJournal().setFileRecord(record);
+                realFolder->journalDb()->setFileRecord(record);
+            }
+        }
+        QVERIFY(fakeFolder.syncOnce());
+        QCOMPARE(fakeFolder.currentLocalState(), fakeFolder.currentRemoteState());
+        //
+
         // wait enough time to make shares' state invalid
         QTest::qWait(shellExtensionServerOverrideIntervalMs + 1000);
 
@@ -446,7 +459,7 @@ private slots:
         customStates.clear();
         std::thread t3([&] {
             VfsShellExtensions::CustomStateProviderIpc customStateProviderIpc;
-            customStates = customStateProviderIpc.fetchCustomStatesForFile(fakeFolder.localPath() + QStringLiteral("A/files/test_shared_file.txt"));
+            customStates = customStateProviderIpc.fetchCustomStatesForFile(fakeFolder.localPath() + QStringLiteral("A/files/test_non_shared_and_non_locked_file.txt"));
             QMetaObject::invokeMethod(&loop, &QEventLoop::quit, Qt::QueuedConnection);
         });
         loop.exec();
