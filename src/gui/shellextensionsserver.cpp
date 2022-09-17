@@ -26,7 +26,7 @@
 #include <QLocalSocket>
 
 namespace {
-constexpr auto customStatesSharesFetchInterval = 2 * 60 * 1000; // 2 minutes, so we don't make fetch sharees requests too often
+constexpr auto isSharedInvalidationInterval = 2 * 60 * 1000; // 2 minutes, so we don't make fetch sharees requests too often
 constexpr auto folderAliasPropertyKey = "folderAlias";
 }
 
@@ -35,7 +35,7 @@ namespace OCC {
 ShellExtensionsServer::ShellExtensionsServer(QObject *parent)
     : QObject(parent)
 {
-    _shareStateInvalidationInterval = customStatesSharesFetchInterval;
+    _isSharedInvalidationInterval = isSharedInvalidationInterval;
     _localServer.listen(VfsShellExtensions::serverNameForApplicationNameDefault());
     connect(&_localServer, &QLocalServer::newConnection, this, &ShellExtensionsServer::slotNewConnection);
 }
@@ -63,9 +63,9 @@ QString ShellExtensionsServer::getFetchThumbnailPath()
     return QStringLiteral("/index.php/core/preview");
 }
 
-void ShellExtensionsServer::setShareStateInvalidationInterval(qint64 interval)
+void ShellExtensionsServer::setIsSharedInvalidationInterval(qint64 interval)
 {
-    _shareStateInvalidationInterval = interval;
+    _isSharedInvalidationInterval = interval;
 }
 
 void ShellExtensionsServer::sendJsonMessageWithVersion(QLocalSocket *socket, const QVariantMap &message)
@@ -123,8 +123,8 @@ void ShellExtensionsServer::processCustomStateRequest(QLocalSocket *socket, cons
             QVariantMap{{VfsShellExtensions::Protocol::CustomStateStatesKey, states}}}};
     };
 
-    if (QDateTime::currentMSecsSinceEpoch() - record._lastShareStateFetchedTimestmap < _shareStateInvalidationInterval) {
-        qInfo() << record.path() << " record._lastShareStateFetchedTimestmap has less than " << _shareStateInvalidationInterval << " ms difference with QDateTime::currentMSecsSinceEpoch(). Returning data from SyncJournal.";
+    if (QDateTime::currentMSecsSinceEpoch() - record._lastShareStateFetchedTimestmap < _isSharedInvalidationInterval) {
+        qInfo() << record.path() << " record._lastShareStateFetchedTimestmap has less than " << _isSharedInvalidationInterval << " ms difference with QDateTime::currentMSecsSinceEpoch(). Returning data from SyncJournal.";
         sendJsonMessageWithVersion(socket, composeMessageReplyFromRecord(record));
         closeSession(socket);
         return;
@@ -250,7 +250,7 @@ void ShellExtensionsServer::slotNewConnection()
         parseCustomStateRequest(socket, message);
         return;
     }
-
+    qWarning() << "Invalid message received from shell extension: " << message;
     sendEmptyDataAndCloseSession(socket);
     return;
 }
@@ -286,28 +286,28 @@ void ShellExtensionsServer::slotSharesFetched(const QJsonDocument &reply)
         return;
     }
 
-    QStringList sharesToReset;
-    const QString shareesToResetPath = sharesPath == QStringLiteral("/") ? QStringLiteral("") : sharesPath;
-    folder->journalDb()->listFilesInPath(shareesToResetPath.toUtf8(), [&](const SyncJournalFileRecord &rec) { sharesToReset.push_back(rec.path()); });
-
     const auto timeStamp = QDateTime::currentMSecsSinceEpoch();
-
-    for (const auto &shareToResetPat : sharesToReset) {
-        SyncJournalFileRecord record;
-        if (!folder->journalDb()->getFileRecord(shareToResetPat, &record) || !record.isValid()) {
-            continue;
+    QStringList recortPathsToResetIsSharedFlag;
+    const QByteArray pathOfSharesToResetIsSharedFlag = sharesPath == QStringLiteral("/") ? QByteArrayLiteral("") : sharesPath.toUtf8();
+    if (folder->journalDb()->listFilesInPath(pathOfSharesToResetIsSharedFlag, [&](const SyncJournalFileRecord &rec) {
+        recortPathsToResetIsSharedFlag.push_back(rec.path());
+    })) {
+        for (const auto &recordPath : recortPathsToResetIsSharedFlag) {
+            SyncJournalFileRecord record;
+            if (!folder->journalDb()->getFileRecord(recordPath, &record) || !record.isValid()) {
+                continue;
+            }
+            record._isShared = false;
+            record._lastShareStateFetchedTimestmap = timeStamp;
+            folder->journalDb()->setFileRecord(record);
         }
-        record._isShared = false;
-        record._lastShareStateFetchedTimestmap = timeStamp;
-        folder->journalDb()->setFileRecord(record);
     }
-
-    auto objectToString = QJsonDocument(reply.object()).toJson();
 
     const auto sharesFetched = reply.object().value(QStringLiteral("ocs")).toObject().value(QStringLiteral("data")).toArray();
 
     for (const auto &share : sharesFetched) {
         const auto shareData = share.toObject();
+
         const auto sharePath = [&shareData, folder]() { 
             const auto sharePathRemote = shareData.value(QStringLiteral("path")).toString();
 

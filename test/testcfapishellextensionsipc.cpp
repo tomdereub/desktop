@@ -169,7 +169,7 @@ private slots:
         VfsShellExtensions::CustomStateProviderIpc::overrideServerName = VfsShellExtensions::serverNameForApplicationNameDefault();
 
         _shellExtensionsServer.reset(new ShellExtensionsServer);
-        _shellExtensionsServer->setShareStateInvalidationInterval(shellExtensionServerOverrideIntervalMs);
+        _shellExtensionsServer->setIsSharedInvalidationInterval(shellExtensionServerOverrideIntervalMs);
 
         for (const auto &dummyImageName : dummmyImageNames) {
             const auto extension = dummyImageName.split(".").last();

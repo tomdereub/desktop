@@ -15,8 +15,6 @@
 #include "customstateprovideripc.h"
 #include "common/shellextensionutils.h"
 #include "ipccommon.h"
-#include <QString>
-#include <QSize>
 #include <QtNetwork/QLocalSocket>
 #include <QJsonDocument>
 namespace {

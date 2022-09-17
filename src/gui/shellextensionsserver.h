@@ -50,7 +50,7 @@ public:
 
     static QString getFetchThumbnailPath();
 
-    void setShareStateInvalidationInterval(qint64 interval);
+    void setIsSharedInvalidationInterval(qint64 interval);
 
 signals:
     void fetchSharesJobFinished(const QString &folderAlias);
@@ -76,6 +76,6 @@ private:
     QStringList _runningFetchShareJobsForPaths;
     QMutex _customStateSocketConnectionsMutex;
     QMap<qintptr, QMetaObject::Connection> _customStateSocketConnections;
-    qint64 _shareStateInvalidationInterval = 0;
+    qint64 _isSharedInvalidationInterval = 0;
 };
 } // namespace OCC

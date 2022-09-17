@@ -15,9 +15,6 @@
 #include "customstateprovider.h"
 #include "customstateprovideripc.h"
 #include <Shlguid.h>
-#include <string>
-#include <QVector>
-#include <QRandomGenerator>
 
 extern long dllObjectsCount;
 

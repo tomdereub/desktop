@@ -19,7 +19,6 @@
 #include <windows.storage.provider.h>
 #include <QString>
 #include <QMap>
-#include <Vector>
 
 namespace winrt::CfApiShellExtensions::implementation {
 struct __declspec(uuid(CFAPI_SHELLEXT_CUSTOM_STATE_HANDLER_CLASS_ID)) CustomStateProvider

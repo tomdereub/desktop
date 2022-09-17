@@ -14,10 +14,10 @@
 
 #pragma once
 
-class QString;
 class QLocalSocket;
 
 #include <QScopedPointer>
+#include <QString>
 #include <QVariant>
 
 namespace VfsShellExtensions {

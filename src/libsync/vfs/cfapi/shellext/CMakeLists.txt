@@ -1,5 +1,4 @@
 include(GenerateIconsUtils)
-include(FileUtils)
 
 # generate custom states icons
 set(theme_dir ${CMAKE_SOURCE_DIR}/theme)
