@@ -405,6 +405,17 @@ void ProcessDirectoryJob::processFile(PathTuple path,
     if (item->_type == ItemTypeVirtualFileDehydration)
         item->_type = ItemTypeFile;
 
+    // We want to check the lock state of this file after the lock time has expired
+    if(serverEntry.locked == SyncFileItem::LockStatus::LockedItem) {
+        const auto lockExpirationTime = serverEntry.lockTime + serverEntry.lockTimeout;
+        const auto timeRemaining = QDateTime::currentDateTime().secsTo(QDateTime::fromSecsSinceEpoch(lockExpirationTime));
+        const auto timerInterval = qMax(5LL, timeRemaining);
+
+        qCInfo(lcDisco) << "Will re-check lock status for:" << path._original << "in:" << timerInterval << "seconds.";
+        _discoveryData->_anotherSyncNeeded = true;
+        _discoveryData->_scheduleSyncInSecs = timerInterval;
+    }
+
     // VFS suffixed files on the server are ignored
     if (isVfsWithSuffix()) {
         if (hasVirtualFileSuffix(serverEntry.name)
@@ -516,6 +527,7 @@ void ProcessDirectoryJob::processFileAnalyzeRemoteInfo(
         const bool isVirtualE2EePlaceholder = isDbEntryAnE2EePlaceholder && serverEntry.size >= Constants::e2EeTagSize;
         const qint64 sizeOnServer = isVirtualE2EePlaceholder ? serverEntry.size - Constants::e2EeTagSize : serverEntry.size;
         const bool metaDataSizeNeedsUpdateForE2EeFilePlaceholder = isVirtualE2EePlaceholder && dbEntry._fileSize == serverEntry.size;
+        const bool serverEntryLockedAsBool = serverEntry.locked == SyncFileItem::LockStatus::LockedItem;
 
         if (serverEntry.isDirectory != dbEntry.isDirectory()) {
             // If the type of the entity changed, it's like NEW, but
@@ -562,6 +574,8 @@ void ProcessDirectoryJob::processFileAnalyzeRemoteInfo(
             }
             item->_instruction = CSYNC_INSTRUCTION_UPDATE_METADATA;
             item->_direction = SyncFileItem::Down;
+        } else if(serverEntryLockedAsBool != dbEntry._lockstate._locked) {
+            item->_instruction = CSYNC_INSTRUCTION_UPDATE_METADATA;
         } else {
             // if (is virtual mode enabled and folder is encrypted - check if the size is the same as on the server and then - trigger server query
             // to update a placeholder with corrected size (-16 Bytes)
@@ -825,7 +839,7 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
 
     bool serverModified = item->_instruction == CSYNC_INSTRUCTION_NEW || item->_instruction == CSYNC_INSTRUCTION_SYNC
         || item->_instruction == CSYNC_INSTRUCTION_RENAME || item->_instruction == CSYNC_INSTRUCTION_TYPE_CHANGE;
-    
+
     qCDebug(lcDisco) << "File" << item->_file << "- servermodified:" << serverModified
                      << "noServerEntry:" << noServerEntry;
 
@@ -1039,7 +1053,7 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
             item->_size = localEntry.size;
             item->_modtime = localEntry.modtime;
             _childModified = true;
-            
+
             qCDebug(lcDisco) << "Local file was changed: File" << item->_file
                              << "item->_instruction:" << item->_instruction
                              << "noServerEntry:" << noServerEntry
@@ -1326,7 +1340,7 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
             chopVirtualFileSuffix(serverOriginalPath);
         auto job = new RequestEtagJob(_discoveryData->_account, serverOriginalPath, this);
         connect(job, &RequestEtagJob::finishedWithResult, this, [=](const HttpResult<QByteArray> &etag) mutable {
-            
+
 
             if (!etag || (etag.get() != base._etag && !item->isDirectory()) || _discoveryData->isRenamed(originalPath)
                 || (isAnyParentBeingRestored(originalPath) && !isRename(originalPath))) {
@@ -1392,7 +1406,7 @@ void ProcessDirectoryJob::processFileConflict(const SyncFileItemPtr &item, Proce
                          << "localEntry.modtime:" << localEntry.modtime;
         return;
     }
-    
+
     if (!serverEntry.checksumHeader.isEmpty()) {
         qCDebug(lcDisco) << "CSYNC_INSTRUCTION_CONFLICT: File" << item->_file << "if (!serverEntry.checksumHeader.isEmpty())";
         qCDebug(lcDisco) << "CSYNC_INSTRUCTION_CONFLICT: serverEntry.size:" << serverEntry.size
@@ -1435,7 +1449,7 @@ void ProcessDirectoryJob::processFileConflict(const SyncFileItemPtr &item, Proce
         }
         return;
     }
-    
+
     if (!up._valid || up._contentChecksum != serverEntry.checksumHeader) {
         qCDebug(lcDisco) << "CSYNC_INSTRUCTION_SYNC: File" << item->_file << "if (!up._valid && up._contentChecksum != serverEntry.checksumHeader)";
         qCDebug(lcDisco) << "CSYNC_INSTRUCTION_SYNC: up._valid:" << up._valid
@@ -1646,7 +1660,7 @@ bool ProcessDirectoryJob::isRename(const QString &originalPath) const
 
     /* TODO: This was needed at some point to cover an edge case which I am no longer to reproduce and it might no longer be the case.
     *  Still, leaving this here just in case the edge case is caught at some point in future.
-    * 
+    *
     OCC::SyncJournalFileRecord base;
     // are we allowed to rename?
     if (!_discoveryData || !_discoveryData->_statedb || !_discoveryData->_statedb->getFileRecord(originalPath, &base)) {
