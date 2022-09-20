@@ -254,16 +254,7 @@ bool ProcessDirectoryJob::handleExcluded(const QString &path, const Entries &ent
         }
     }
 
-#ifdef Q_OS_WIN
-    // exclude ".lnk" files as they are not essential, but, causing troubles when enabling the VFS due to
-    // QFileInfo::isDir() and other methods are freezing, which causes the ".lnk" files to start hydrating and freezing
-    // the app eventually.
-    const bool isServerEntryWindowsShortcut = !entries.localEntry.isValid() && entries.serverEntry.isValid()
-        && !entries.serverEntry.isDirectory && FileSystem::isLnkFile(entries.serverEntry.name);
-#else
-    const bool isServerEntryWindowsShortcut = false;
-#endif
-    const auto isSymlink = entries.localEntry.isSymLink || isServerEntryWindowsShortcut;
+    const auto isSymlink = entries.localEntry.isSymLink;
 
     if (excluded == CSYNC_NOT_EXCLUDED && !isSymlink) {
         return false;
@@ -640,6 +631,7 @@ void ProcessDirectoryJob::processFileAnalyzeRemoteInfo(
         if (!localEntry.isValid()
             && item->_type == ItemTypeFile
             && opts._vfs->mode() != Vfs::Off
+            && !FileSystem::isLnkFile(item->_file)
             && _pinState != PinState::AlwaysLocal
             && !FileSystem::isExcludeFile(item->_file)) {
             item->_type = ItemTypeVirtualFile;
